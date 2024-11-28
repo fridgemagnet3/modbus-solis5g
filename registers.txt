@@ -1,0 +1,59 @@
+33079/80 - Active Power ? 
+33139 - Battery SOC (%)
+33147 - House Load Power
+33149/50 - Battery Power ?
+ 
+33135 - battery status 0=charge, 1=discharge (battery current direction)
+33130/31 (s32) - grid power +ve export, -ve import (meter active power)
+33057/58 (u32) - current generation (total DC output power)
+33263/64(?) (s32) - meter total active power
+
+43110 - battery storage mode 33=self use, 35=timed charge function code=3
+
+Addr: 35000 => 2030 = 1 phase low voltage energy storage inverter
+                      SOLIS Inverter type definition
+(via RS485_MODBUS Communication Protocol_Solis Inverters.pdf - note that this
+is NOT the document that has all the register definitions above)
+
+33035 - inverter power generation today
+
+JSON Solis API equivalents
+--------------------------
+
+batteryCapacitySoc = 16  33139: Battery capacity SOC: 16%
+batteryPower = -178.71   33149:33150: Battery power: 178 W (discharging)
+                         33135: Battery charge status - as above doesn't appear to be signed
+# generation
+pac = 0.207              33057:33058: Current Generation - DC power o/p: 207 W
+# grid in/out
+psum = -0.22             33263:33264: Meter total active power: -0.220000 kW (importing)
+# load
+familyLoadPower = 0.402  33147: House load power: 402 W
+
+Register accesses: 33135-33150
+                   33057-33058
+                   33263-33264
+            
+Normal poll cycle: 1 min (register reads every 5 min)
+
+EXCEPT for odd intervals (~1 per day?) where its like some sort of reset occurs causing
+an access to occur at any time, then have a cycle (or 2) of differing timings followed by 
+6 cycles where two of the register write cycles are occurring at 01:12 minute followed by
+00:44 second intervals.
+
+Now I've made the app more robust to decode errors, a longer run between 08/11 thru to 11/11
+shows this behaviour occurring 24hrs apart (in this instance ~03:15am). 
+On 09/11 the normal register read cycle is interrupted after the read at 33075, with an 11s 
+delay followed by read of 35000 after which the normal register reads restart.
+On 10/11 it occurs shortly after a register write, after which the normal register reads restart.
+On 11/11 the normal register read cycle is interrupted after the read at 33104, with an 11s
+delay followed by read of 35000 after which the normal register reads restart.
+
+Note that in trace from 05/11, this was happening at 04:13am whilst on 04/11, it was at 11:28am. So
+can shift around *for some reason*.
+
+Key thing though is it's not (as I thought), the write which kicks this off but an unexpected read of
+35000 which can occur seemingly any time. Following that you then get the differently timed (and content)
+writes.
+
+TODO: Determine the behaviour when the wifi adaptor is first connected.
