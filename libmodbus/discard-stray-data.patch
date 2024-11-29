@@ -1,0 +1,121 @@
+diff -Nur libmodbus-3.1.11_vanilla/src/modbus.c libmodbus-3.1.11/src/modbus.c
+--- libmodbus-3.1.11_vanilla/src/modbus.c	2024-10-22 10:10:05.000000000 +0100
++++ libmodbus-3.1.11/src/modbus.c	2024-11-28 19:08:28.228434745 +0000
+@@ -367,6 +367,7 @@
+ #ifdef _WIN32
+     int wsa_err;
+ #endif
++    int slave_offset = -1;
+ 
+     if (ctx->debug) {
+         if (msg_type == MSG_INDICATION) {
+@@ -478,36 +479,73 @@
+                 printf("<%.2X>", msg[msg_length + i]);
+         }
+ 
+-        /* Sums bytes received */
+-        msg_length += rc;
+-        /* Computes remaining bytes */
+-        length_to_read -= rc;
++        // JRB: Patch to try and discard any noise coming in at the start of the reply
++        if ((slave_offset == -1) && (step == _STEP_FUNCTION))
++        {
++          int i;
++
++          // first byte should be the slave id so try and find it in the buffer
++          for ( i = 0; i < rc; i++)
++          {
++            if (msg[i] == modbus_get_slave(ctx))
++            {
++              // found it
++              slave_offset = i;
++              break;
++            }
++          }
++
++          if (slave_offset != -1)
++          {
++            if (slave_offset)
++            {
++              uint8_t *ptr = msg;
++
++              // shuffle everything down the buffer
++              for (i = slave_offset; i < rc; i++)
++                *ptr++ = msg[i];
++
++              // adjust total count
++              rc -= slave_offset;
++            }
++          }
++          else
++            rc = 0;
++        }
++
++        // JRB: Buffer maybe entirely junk so just go around again if it is
++        if (rc)
++        {
++          /* Sums bytes received */
++          msg_length += rc;
++          /* Computes remaining bytes */
++          length_to_read -= rc;
+ 
+-        if (length_to_read == 0) {
++          if (length_to_read == 0) {
+             switch (step) {
+             case _STEP_FUNCTION:
+-                /* Function code position */
+-                length_to_read = compute_meta_length_after_function(
+-                    msg[ctx->backend->header_length], msg_type);
+-                if (length_to_read != 0) {
+-                    step = _STEP_META;
+-                    break;
+-                } /* else switches straight to the next step */
+-            case _STEP_META:
+-                length_to_read = compute_data_length_after_meta(ctx, msg, msg_type);
+-                if ((msg_length + length_to_read) > ctx->backend->max_adu_length) {
+-                    errno = EMBBADDATA;
+-                    _error_print(ctx, "too many data");
+-                    return -1;
+-                }
+-                step = _STEP_DATA;
++              /* Function code position */
++              length_to_read = compute_meta_length_after_function(
++                msg[ctx->backend->header_length], msg_type);
++              if (length_to_read != 0) {
++                step = _STEP_META;
+                 break;
++              } /* else switches straight to the next step */
++            case _STEP_META:
++              length_to_read = compute_data_length_after_meta(ctx, msg, msg_type);
++              if ((msg_length + length_to_read) > ctx->backend->max_adu_length) {
++                errno = EMBBADDATA;
++                _error_print(ctx, "too many data");
++                return -1;
++              }
++              step = _STEP_DATA;
++              break;
+             default:
+-                break;
++              break;
+             }
+-        }
++          }
+ 
+-        if (length_to_read > 0 &&
++          if (length_to_read > 0 &&
+             (ctx->byte_timeout.tv_sec > 0 || ctx->byte_timeout.tv_usec > 0)) {
+             /* If there is no character in the buffer, the allowed timeout
+                interval between two consecutive bytes is defined by
+@@ -515,9 +553,10 @@
+             tv.tv_sec = ctx->byte_timeout.tv_sec;
+             tv.tv_usec = ctx->byte_timeout.tv_usec;
+             p_tv = &tv;
++          }
++          /* else timeout isn't set again, the full response must be read before
++             expiration of response timeout (for CONFIRMATION only) */
+         }
+-        /* else timeout isn't set again, the full response must be read before
+-           expiration of response timeout (for CONFIRMATION only) */
+     }
+ 
+     if (ctx->debug)
