@@ -35,6 +35,13 @@ The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the applicat
 stty -F <serial-port-device> 9600 raw -echo
 
 ### modbus-sniffer
+Dependencies: boost-crc, boost-datetime (sudo apt-get install libboost-dev libboost-date-time-dev)
+
+As the name suggests, this is an app designed to sniff traffic on the serial link, essentially to capture and profile the transactions performed by the wifi dongle. From this I was able to asertain that the wifi dongle, for the most part only ever performs relatively short transactions, every minute and retrieves the bulk of the data every 5 minutes. This also let me determine which of the, several Solis Modbus documents that are out there correspond to the register set of the inverter, that being https://www.scss.tcd.ie/Brian.Coghlan/Elios4you/RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf. Based on this, the tool will also decode a (very limited) subset of the registers, in turn allowing me to figure out how to decode the [registers holding active generation data](registers.txt)
+
+The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data).
+
+The app also highlighted that I'm seeing some stray characters being received, pretty much at the start and/or end of every request/response sequence, this can be seen in the [sample log file](data/2024-11-08_12-07-44.log) where it reports __Skipped 2 bytes in stream looking for next header__. I think it's whenever either the dongle or inverter turns it's transmitters on, it's injecting what is interpreted as one or more serial break charaters. I've not yet got to the bottom of why or how to correct it, only that I don't believe it is something that should be present on the serial link - which then causes issues when using the libmodbus library as covered in the next section.
 
 ### modbus-solis-broadcast
 
