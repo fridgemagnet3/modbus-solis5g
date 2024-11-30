@@ -170,15 +170,19 @@ int main(int argc, char *argv[])
   int i;
   int32_t Rc = 1 ;
   uint16_t *RegPtr = (uint16_t*)registers_bin;
+  bool SimulateLogger = true;
 
   if (argc < 2)
   {
-    printf("Usage: modbus-slave <input> [slave address=1]\n");
+    printf("Usage: modbus-slave <input> [slave address=1] [simulate-datalogger=1]\n");
     return -1;
   }
 
   if ( argc > 2)
     Slave = (uint8_t)strtoul(argv[2], NULL, 0);
+
+  if (argc > 3)
+    SimulateLogger = strtoul(argv[3], NULL, 0) ? true : false;
 
   ModBusMapping = modbus_mapping_new_start_address(0, 0, 0, 0, 0, 0, 33000, 300);
   if (!ModBusMapping)
@@ -205,7 +209,8 @@ int main(int argc, char *argv[])
   // start the run
   while (Rc>=0)
   {
-    SimulateBusTransaction(argv[1]);
+    if (SimulateLogger)
+      SimulateBusTransaction(argv[1]);
     Rc = ModBusHandleResponse(argv[1], Slave, ModBusMapping);
   }
 
