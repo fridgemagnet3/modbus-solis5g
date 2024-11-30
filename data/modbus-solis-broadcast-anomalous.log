@@ -1,0 +1,574 @@
+#
+## Generally about once a day, you see this type of behaviour
+## Once it recovers, from this initial blip, the interval between polls
+## slips out, this will last for about half an hour before reverting to normal 
+## This I think coincides with those transactions marked "anomaly" on the s/sheet
+##
+
+
+Sync with logger at 2024-Nov-25 01:39:15...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-25 01:39:24...
+Elapsed: 11s
+
+Issuing request at 2024-Nov-25 01:39:35...
+Battery capacity SOC: 13%
+Battery power: 1.842000 kW
+House load power: 0.273000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.250000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498775",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	13,
+		"batteryPower":	1.842,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.25,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.273,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:39:55...
+modbus_read_input_registers: Invalid CRC
+Failed to retrieve modbus data from inverter
+
+Issuing request at 2024-Nov-25 01:40:15...
+modbus_read_input_registers: Connection timed out
+Failed to retrieve modbus data from inverter
+
+Sync with logger at 2024-Nov-25 01:40:16...
+Got data 8 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 9 bytes within 2 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 2 bytes within 1 seconds, re-syncing just to be sure...
+Got data 9 bytes within 2 seconds, re-syncing just to be sure...
+Got data 9 bytes within 2 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 2 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 2 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 2 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 14 bytes within 1 seconds, re-syncing just to be sure...
+Got data 2 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 14 bytes within 1 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 2 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 8 bytes within 2 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 15 bytes within 1 seconds, re-syncing just to be sure...
+Got data 16 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 1 bytes within 1 seconds, re-syncing just to be sure...
+Got data 7 bytes within 2 seconds, re-syncing just to be sure...
+Got data 8 bytes within 1 seconds, re-syncing just to be sure...
+Got data 6 bytes within 1 seconds, re-syncing just to be sure...
+Elapsed: 72s
+
+Wait for idle at 2024-Nov-25 01:41:28...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-25 01:41:38...
+Battery capacity SOC: 15%
+Battery power: 1.840000 kW
+House load power: 0.274000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.250000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498899",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	15,
+		"batteryPower":	1.84,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.25,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.274,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:41:59...
+Battery capacity SOC: 15%
+Battery power: 1.840000 kW
+House load power: 0.276000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.251000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498919",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	15,
+		"batteryPower":	1.84,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.251,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.276,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:42:19...
+Battery capacity SOC: 16%
+Battery power: 1.840000 kW
+House load power: 0.268000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.251000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498939",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	16,
+		"batteryPower":	1.84,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.251,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.268,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-25 01:42:19...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-25 01:42:28...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-25 01:42:38...
+Battery capacity SOC: 16%
+Battery power: 1.844000 kW
+House load power: 0.268000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.253000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498959",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	16,
+		"batteryPower":	1.844,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.253,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.268,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:42:59...
+Battery capacity SOC: 16%
+Battery power: 1.844000 kW
+House load power: 0.268000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.253000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498979",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	16,
+		"batteryPower":	1.844,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.253,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.268,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:43:19...
+Battery capacity SOC: 16%
+Battery power: 1.844000 kW
+House load power: 0.271000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.255000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732498999",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	16,
+		"batteryPower":	1.844,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.255,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.271,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-25 01:43:19...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-25 01:43:28...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-25 01:43:38...
+Battery capacity SOC: 17%
+Battery power: 1.849000 kW
+House load power: 0.267000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.253000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499019",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	17,
+		"batteryPower":	1.849,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.253,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.267,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:43:59...
+Battery capacity SOC: 17%
+Battery power: 1.839000 kW
+House load power: 0.269000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.253000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499039",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	17,
+		"batteryPower":	1.839,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.253,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.269,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:44:19...
+Battery capacity SOC: 17%
+Battery power: 1.844000 kW
+House load power: 0.270000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.255000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499059",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	17,
+		"batteryPower":	1.844,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.255,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.27,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-25 01:44:19...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-25 01:44:28...
+Elapsed: 85s
+
+Issuing request at 2024-Nov-25 01:45:53...
+Battery capacity SOC: 19%
+Battery power: 1.843000 kW
+House load power: 0.274000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.259000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499154",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	19,
+		"batteryPower":	1.843,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.259,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.274,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:46:14...
+Battery capacity SOC: 19%
+Battery power: 1.851000 kW
+House load power: 0.273000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.259000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499174",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	19,
+		"batteryPower":	1.851,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.259,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.273,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:46:34...
+Battery capacity SOC: 19%
+Battery power: 1.846000 kW
+House load power: 0.276000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.263000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499194",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	19,
+		"batteryPower":	1.846,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.263,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.276,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-25 01:46:34...
+Elapsed: 54s
+
+Wait for idle at 2024-Nov-25 01:47:28...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-25 01:47:38...
+Battery capacity SOC: 20%
+Battery power: 1.851000 kW
+House load power: 0.270000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.263000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499259",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	20,
+		"batteryPower":	1.851,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.263,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.27,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:47:59...
+Battery capacity SOC: 20%
+Battery power: 1.855000 kW
+House load power: 0.272000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.264000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499279",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	20,
+		"batteryPower":	1.855,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.264,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.272,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-25 01:48:19...
+Battery capacity SOC: 21%
+Battery power: 1.850000 kW
+House load power: 0.272000 kW
+Current Generation - DC power o/p: 0.002000 kW
+Meter total active power: -2.266000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732499299",
+		"eToday":	1,
+		"pac":	0.002,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	21,
+		"batteryPower":	1.85,
+		"batteryPowerStr":	"kW",
+		"psum":	-2.266,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.272,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-25 01:48:19...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-25 01:48:28...
+Elapsed: 10s

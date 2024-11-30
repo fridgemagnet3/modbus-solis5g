@@ -1,0 +1,515 @@
+##
+## This is the typical behaviour of the modbus-solis-broadcast app 
+##
+
+Starting poll
+
+Sync with logger at 2024-Nov-24 15:38:35...
+Elapsed: 48s
+
+Wait for idle at 2024-Nov-24 15:39:23...
+Elapsed: 13s
+
+Issuing request at 2024-Nov-24 15:39:36...
+Battery capacity SOC: 25%
+Battery power: -0.312000 kW
+House load power: 0.225000 kW
+Current Generation - DC power o/p: 0.012000 kW
+Meter total active power: -0.035000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462777",
+		"eToday":	1,
+		"pac":	0.012,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.312,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.035,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.225,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:39:57...
+Battery capacity SOC: 25%
+Battery power: -0.264000 kW
+House load power: 0.224000 kW
+Current Generation - DC power o/p: 0.012000 kW
+Meter total active power: -0.041000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462797",
+		"eToday":	1,
+		"pac":	0.012,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.264,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.041,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.224,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:40:17...
+Battery capacity SOC: 25%
+Battery power: -0.259000 kW
+House load power: 0.222000 kW
+Current Generation - DC power o/p: 0.011000 kW
+Meter total active power: -0.033000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462817",
+		"eToday":	1,
+		"pac":	0.011,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.259,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.033,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.222,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-24 15:40:17...
+Elapsed: 6s
+
+Wait for idle at 2024-Nov-24 15:40:23...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-24 15:40:33...
+Battery capacity SOC: 25%
+Battery power: -0.273000 kW
+House load power: 0.217000 kW
+Current Generation - DC power o/p: 0.012000 kW
+Meter total active power: -0.038000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462834",
+		"eToday":	1,
+		"pac":	0.012,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.273,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.038,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.217,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:40:54...
+Battery capacity SOC: 25%
+Battery power: -0.268000 kW
+House load power: 0.219000 kW
+Current Generation - DC power o/p: 0.011000 kW
+Meter total active power: -0.033000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462854",
+		"eToday":	1,
+		"pac":	0.011,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.268,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.033,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.219,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:41:14...
+Battery capacity SOC: 25%
+Battery power: -0.283000 kW
+House load power: 0.213000 kW
+Current Generation - DC power o/p: 0.011000 kW
+Meter total active power: -0.008000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462874",
+		"eToday":	1,
+		"pac":	0.011,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.283,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.008,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.213,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-24 15:41:14...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-24 15:41:23...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-24 15:41:33...
+Battery capacity SOC: 25%
+Battery power: -0.287000 kW
+House load power: 0.225000 kW
+Current Generation - DC power o/p: 0.012000 kW
+Meter total active power: 0.011000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462894",
+		"eToday":	1,
+		"pac":	0.012,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.287,
+		"batteryPowerStr":	"kW",
+		"psum":	0.011,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.225,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:41:54...
+Battery capacity SOC: 25%
+Battery power: -0.302000 kW
+House load power: 0.223000 kW
+Current Generation - DC power o/p: 0.011000 kW
+Meter total active power: 0.020000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462914",
+		"eToday":	1,
+		"pac":	0.011,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.302,
+		"batteryPowerStr":	"kW",
+		"psum":	0.02,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.223,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:42:14...
+Battery capacity SOC: 25%
+Battery power: -0.302000 kW
+House load power: 0.226000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.005000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462934",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.302,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.005,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.226,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-24 15:42:14...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-24 15:42:23...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-24 15:42:33...
+Battery capacity SOC: 25%
+Battery power: -0.302000 kW
+House load power: 0.226000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.017000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462954",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.302,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.017,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.226,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:42:54...
+Battery capacity SOC: 25%
+Battery power: -0.322000 kW
+House load power: 0.322000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.086000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462974",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.322,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.086,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.322,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:43:14...
+Battery capacity SOC: 25%
+Battery power: -0.423000 kW
+House load power: 0.341000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.001000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732462994",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.423,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.001,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.341,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-24 15:43:14...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-24 15:43:23...
+Elapsed: 10s
+
+Issuing request at 2024-Nov-24 15:43:33...
+Battery capacity SOC: 25%
+Battery power: -0.417000 kW
+House load power: 0.333000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.002000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732463014",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.417,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.002,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.333,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:43:54...
+Battery capacity SOC: 25%
+Battery power: -0.417000 kW
+House load power: 0.334000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.002000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732463034",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.417,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.002,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.334,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:44:14...
+Battery capacity SOC: 25%
+Battery power: -0.403000 kW
+House load power: 0.318000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: 0.000000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732463054",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.403,
+		"batteryPowerStr":	"kW",
+		"psum":	0,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.318,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-24 15:44:14...
+Elapsed: 9s
+
+Wait for idle at 2024-Nov-24 15:44:23...
+Elapsed: 13s
+
+Issuing request at 2024-Nov-24 15:44:36...
+Battery capacity SOC: 25%
+Battery power: -0.403000 kW
+House load power: 0.321000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.005000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732463077",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.403,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.005,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.321,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:44:57...
+Battery capacity SOC: 25%
+Battery power: -0.408000 kW
+House load power: 0.324000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: -0.005000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732463097",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	25,
+		"batteryPower":	-0.408,
+		"batteryPowerStr":	"kW",
+		"psum":	-0.005,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.324,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Issuing request at 2024-Nov-24 15:45:17...
+Battery capacity SOC: 24%
+Battery power: -0.412000 kW
+House load power: 0.322000 kW
+Current Generation - DC power o/p: 0.007000 kW
+Meter total active power: 0.004000 kW
+JSON data: {
+	"code":	"0",
+	"data":	{
+		"storageBatteryCurrent":	1,
+		"dataTimestamp":	"1732463117",
+		"eToday":	1,
+		"pac":	0.007,
+		"pacStr":	"kW",
+		"batteryCapacitySoc":	24,
+		"batteryPower":	-0.412,
+		"batteryPowerStr":	"kW",
+		"psum":	0.004,
+		"psumStr":	"kW",
+		"familyLoadPower":	0.322,
+		"familyLoadPowerStr":	"kW"
+	},
+	"msg":	"success",
+	"success":	true
+}:
+
+Sync with logger at 2024-Nov-24 15:45:17...
+Elapsed: 6s
+
+Wait for idle at 2024-Nov-24 15:45:23...
+Elapsed: 10s
