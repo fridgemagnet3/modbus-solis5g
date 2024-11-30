@@ -6,10 +6,12 @@ This is a collection of some applications, tools and utilities I've put together
 
 Solis 5G inverters allow for the connection of a Wifi dongle which allows information to be uploaded to the Solis cloud servers (in China). In turn, this information can be retrieved via the [SolisCloud website](https://www.soliscloud.com) and/or via the app.
 
-Additionally, Solis provide [an API](https://solis-service.solisinverters.com/en/support/solutions/articles/44002212561-api-access-soliscloud) which allows you to retrieve this same data programatically sent over https. This is packaged up as JSON encoded data which I've made use of for some time in order to retrieve both historical and current data, the latter of which I've had presented on various displays, including @zx85 solar-display-micropython project.
+Additionally, Solis provide [an API](https://solis-service.solisinverters.com/en/support/solutions/articles/44002212561-api-access-soliscloud) which allows you to retrieve this same data programatically sent over https. This is packaged up as JSON encoded data which I've made use of for some time in order to retrieve both historical and current data, the latter of which I've had presented on various displays, including [@zx85's solar-display-micropython project](https://github.com/zx85/solar-display-micropython)
 
 <a name="udp-broadcast"></a>
-One significant difference is that I've taken out the functionality from the solar displays which directly interface to the Solis API. Instead, they pick the data up from UDP packets, broadcast over the local network. I therefore only have a single application which retrieves the data, then pushes it out periodically (essentially it just retransmits the JSON data, as received from Solis). This then means I can also easily swap out where the data comes from - the Solis cloud or (as is [described later](#modbus-solis-broadcast)) locally from the inverter. The data is also compressed, this is probably redundant now and I may remove it in the near future. It was designed to keep the UDP packet size down since there is a lot of JSON data in the Solis API response & became particularly pertinent because the ESP32 (as used in @z85's display) IP stack can't handle UDP fragmentation. More recently though, I've taken to pruning out much of the unrequired data in the response packet.
+One significant difference is that I've taken out the functionality from the solar displays which directly interface to the Solis API. Instead, they pick the data up from UDP packets, broadcast over the local network. I therefore only have a single application which retrieves the data, then pushes it out periodically (essentially it just retransmits the JSON data, as received from Solis). This then means I can also easily swap out where the data comes from - the Solis cloud or (as is [described later](#modbus-solis-broadcast)) locally from the inverter. The data is also compressed, this is probably redundant now and I may remove it in the near future. It was designed to keep the UDP packet size down since there is a lot of JSON data in the Solis API response & became particularly pertinent because the ESP32 (as used in [@z85's display](https://github.com/zx85)) IP stack can't handle UDP fragmentation. More recently though, I've taken to pruning out much of the unrequired data in the response packet.
+
+[/fridgemagnet3/solar-display-micropython](https://github.com/fridgemagnet3/solar-display-micropython) is my fork of @zx85's solar display which receives it's data via UDP instead of directly from the Solis cloud API.
 
 The aim of this project was to bypass the need to go via the Solis Wifi dongle, cloud and API and instead obtain the current data directly from the inverter. Aside from cutting out these additional steps, the dongle only updates the cloud data every 5 minutes and I wanted to refresh data at a much higher rate.
 
@@ -63,4 +65,20 @@ Example usage:
 ``./modbus-solis-broadcast /dev/ttyUSB0``
 
 ### modbus-slave
+Dependencies: boost-chrono, boost-datetime, boost-system, libmodbus (sudo apt-get install libboost-chrono-dev libboost-date-time-dev libboost-system-dev libmodbus-dev)
 
+modbus-slave does a passable emulation of the Solis inverter and wifi dongle. If you use a serial crossover cable you can then use the modbus-sniffer and/or modbus-solis-broadcast to test the behaviour in a simulated environment.
+
+By default, it will generate simulated Modbus transactions, which would normally be initiated by the dongle, every minute. If you use the modbus-sniffer app, you should be able to see these arrive and be decoded. It will also respond to Modbus register queries (for example, as issued by the modbus-solis-broadcast app), responsing with fixed register values taken from my own inverter. The periodic transactions can also be disabled, if required via a command line option, in which case it will simply listen to and respond with register requests.
+
+I've developed this primarily to support the next part of the project so I can test & debug my ESP32 solution in a test environment, prior to connecting it to the inverter.
+
+Example usage:
+
+``./modbus-solis-slave /dev/ttyUSB1``
+
+then in another terminal, run:
+
+``./modbus-solis-broadcast /dev/ttyUSB0``
+
+The latter should wait to sync with the simulated wifi transactions sent from the slave, then proceed to issue the requests to retrieve the current solar data values.
