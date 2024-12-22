@@ -281,7 +281,7 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
       cJSON_AddItemToObject(SolarData, "storageBatteryCurrent", Node);
 
     // timestamp
-    TimeBuf << duration_cast<seconds>(UnixTime).count();
+    TimeBuf << duration_cast<milliseconds>(UnixTime).count();
     Node = cJSON_CreateString(TimeBuf.str().c_str());
     if (Node)
       cJSON_AddItemToObject(SolarData, "dataTimestamp", Node);
