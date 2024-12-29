@@ -1,8 +1,9 @@
 #include <ModbusMaster.h>
-
-// serial2 GPIO pins
-#define RXD2 16
-#define TXD2 17
+#include <cJSON.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include "config.h"
+#include <time.h>
 
 // info we're interested in from the inverter - matches JSON names
 // used by the Solis API
@@ -21,6 +22,7 @@ static SolisState_t SolisState = SYNC_INIT ;
 // the modbusmaster instance
 static ModbusMaster ModbusInst;
 
+// read the required registers from modbus
 static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters)
 {
   uint8_t Rc ;
@@ -72,10 +74,110 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
   return Ret ;
 }
 
+// generate JSON message aligned to Solis API from the register data
+static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
+{
+  cJSON *SolarJson = cJSON_CreateObject();
+  cJSON *Node;
+  cJSON *SolarData;
+  char *Ret;
+  time_t TimeStamp ;
+  char TimeBuf[80] ;
+
+  // response code
+  Node = cJSON_CreateString("0");
+  if ( Node )
+    cJSON_AddItemToObject(SolarJson, "code", Node);
+
+  // create the 'data' block
+  SolarData = cJSON_CreateObject();
+  if (SolarData)
+  {
+    cJSON_AddItemToObject(SolarJson, "data", SolarData);
+
+    // Add in a dummy 'storageBatteryCurrent' entry. This serves two purposes...
+    // Firstly, my ipcam_snap script expects this to be in the data (even though it doesn't use it)
+    // Secondly, James' JSON parser fails to correctly decode the first entry in the packet so we
+    // can't include any data that it needs (& this is one such thing) at the start. 
+    Node = cJSON_CreateNumber(1);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "storageBatteryCurrent", Node);
+
+    // timestamp
+    TimeStamp = time(NULL) ;
+    snprintf(TimeBuf,sizeof(TimeBuf), "%llu", TimeStamp*1000u) ;
+    Node = cJSON_CreateString(TimeBuf);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "dataTimestamp", Node);
+
+    // "eToday" = solar energy generated today, James' solar widget
+    // uses this as a sense check for valid data. We *could* retrieve the
+    // actual data from the inverter but it's an extra register read and isn't
+    // otherwise used so just put a stub here
+    Node = cJSON_CreateNumber(1);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eToday", Node);
+
+    // generation
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->pac);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "pac", Node);
+    Node = cJSON_CreateString("kW");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "pacStr", Node);
+    // battery capacity
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryCapacitySoc);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryCapacitySoc", Node);
+    // battery power
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryPower);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryPower", Node);
+    Node = cJSON_CreateString("kW");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryPowerStr", Node);
+
+    // grid in/out
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->psum);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "psum", Node);
+    Node = cJSON_CreateString("kW");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "psumStr", Node);
+    // load
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->familyLoadPower);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "familyLoadPower", Node);
+    Node = cJSON_CreateString("kW");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "familyLoadPowerStr", Node);
+  }
+
+  // the outer pieces
+  Node = cJSON_CreateString("success");
+  if (Node)
+    cJSON_AddItemToObject(SolarJson, "msg", Node);
+  Node = cJSON_CreateBool(true);
+  if (Node)
+    cJSON_AddItemToObject(SolarJson, "success", Node);
+
+  // generate return string
+  Ret = cJSON_Print(SolarJson);
+  cJSON_Delete(SolarJson);
+  return Ret;
+}
+
+static void GetNtpTime(void)
+{
+  const long GmOffsetSec = 0;
+  const int  DaylightOffsetSec = 3600;
+
+  configTime(GmOffsetSec, DaylightOffsetSec, NTP_SERVER);
+}
+
 void setup() 
 {
-  // put your setup code here, to run once:
-  const uint8_t SlaveId = 1u ;
+  IPAddress LocalIp ;
 
   // debug serial
   Serial.begin(115200);
@@ -85,7 +187,22 @@ void setup()
   // 1s rx timeout
   Serial2.setTimeout(1000) ;
 
-  ModbusInst.begin(SlaveId,Serial2);
+  ModbusInst.begin(MODBUS_SLAVE_ID,Serial2);
+
+  // connect to wifi
+  Serial.println("Connecting to WiFi");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID1, PWD1);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(F("."));
+  }
+  LocalIp = WiFi.localIP();
+  Serial.println(F("WiFi connected"));
+  Serial.println(LocalIp);
+
+  GetNtpTime() ;
 
   Serial.println("Setup done");
 }
@@ -98,6 +215,7 @@ void loop()
   const long BusIdleTime = 9900 ;  // ~10s fractionally less so we trip on the 10s rather than 11s boundary
   size_t BytesRead ;
   ModbusSolisRegister_t ModbusSolisRegisters;
+  char *jSon;
 
   switch (SolisState)
   {
@@ -157,6 +275,16 @@ void loop()
           Serial.printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
           Serial.printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
           Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
+
+          // generate the JSON data, aligned to the Solis API
+          jSon = GenerateJson(&ModbusSolisRegisters);
+          if (jSon)
+          {
+            Serial.printf("JSON data: %s:\n", jSon);
+            free(jSon);
+          }
+          else
+            Serial.printf("Failed to retrieve modbus data from inverter\n");
       }
 
       SolisState = SYNC_INIT ;
