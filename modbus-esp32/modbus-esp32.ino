@@ -236,9 +236,9 @@ void setup()
 void loop() 
 {
   uint8_t ScratchBuf[256] ;
-  static long InitTime, SyncTime ;
-  const long MinSyncTime = 4000 ;
-  const long BusIdleTime = 9900 ;  // ~10s fractionally less so we trip on the 10s rather than 11s boundary
+  static unsigned long InitTime, SyncTime ;
+  const unsigned long MinSyncTime = 4000u ;
+  const unsigned long BusIdleTime = 9900u ;  // ~10s fractionally less so we trip on the 10s rather than 11s boundary
   // should have 50s worth of free time, which allows for 3 requests at 20s intervals
   const uint32_t RequestsPerCycle = 3;
   const uint32_t PollDelay = 20000;
