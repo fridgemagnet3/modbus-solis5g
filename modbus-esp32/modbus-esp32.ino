@@ -4,6 +4,10 @@
 #include <WiFiClient.h>
 #include "config.h"
 #include <time.h>
+#include <lwip/err.h>
+#include <lwip/sockets.h>
+#include <lwip/sys.h>
+#include <lwip/netdb.h>
 
 // info we're interested in from the inverter - matches JSON names
 // used by the Solis API
@@ -21,6 +25,10 @@ static SolisState_t SolisState = SYNC_INIT ;
 
 // the modbusmaster instance
 static ModbusMaster ModbusInst;
+
+// UDP broadcast stuff
+static int sFd = -1 ;
+static struct sockaddr_in BroadcastAddr ; 
 
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters)
@@ -167,6 +175,7 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   return Ret;
 }
 
+// TODO: Figure out if we need to periodically call this to keep time in sync
 static void GetNtpTime(void)
 {
   const long GmOffsetSec = 0;
@@ -178,6 +187,7 @@ static void GetNtpTime(void)
 void setup() 
 {
   IPAddress LocalIp ;
+  int EnBroadcast = 1 ;
 
   // debug serial
   Serial.begin(115200);
@@ -202,8 +212,24 @@ void setup()
   Serial.println(F("WiFi connected"));
   Serial.println(LocalIp);
 
+  // fetch current time
   GetNtpTime() ;
 
+  // create the UDP socket & configure for broadcasts
+  sFd = socket(PF_INET,SOCK_DGRAM,0) ;
+  if ( sFd < 0 )
+    Serial.println("Failed to create UDP socket");
+  else
+  {
+    if ( setsockopt(sFd, SOL_SOCKET, SO_BROADCAST, (char*)&EnBroadcast, sizeof(EnBroadcast)) < 0 )
+      Serial.println("Failed set broadcast option on UDP socket");
+
+    memset((void*)&BroadcastAddr, 0, sizeof(struct sockaddr_in));
+    BroadcastAddr.sin_family = PF_INET;
+    BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+    // currently use different port from prototypes for test purposes
+    BroadcastAddr.sin_port = htons(52005);
+  }
   Serial.println("Setup done");
 }
 
@@ -213,9 +239,13 @@ void loop()
   static long InitTime, SyncTime ;
   const long MinSyncTime = 4000 ;
   const long BusIdleTime = 9900 ;  // ~10s fractionally less so we trip on the 10s rather than 11s boundary
+  // should have 50s worth of free time, which allows for 3 requests at 20s intervals
+  const uint32_t RequestsPerCycle = 3;
+  const uint32_t PollDelay = 20000;
   size_t BytesRead ;
   ModbusSolisRegister_t ModbusSolisRegisters;
   char *jSon;
+  static uint32_t RequestCycle = 0 ;
 
   switch (SolisState)
   {
@@ -281,13 +311,24 @@ void loop()
           if (jSon)
           {
             Serial.printf("JSON data: %s:\n", jSon);
+
+            if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
+              Serial.println("Failed to send broadcast packet") ;
             free(jSon);
           }
           else
             Serial.printf("Failed to retrieve modbus data from inverter\n");
       }
 
-      SolisState = SYNC_INIT ;
+      // should have 50s worth of free time, which allows for 3 requests at 20s intervals
+      RequestCycle++ ;
+      if ( RequestCycle == RequestsPerCycle )
+      {
+        RequestCycle = 0u ;
+        SolisState = SYNC_INIT ;
+      }
+      else
+        delay(PollDelay);
       break ;
 
     default :
