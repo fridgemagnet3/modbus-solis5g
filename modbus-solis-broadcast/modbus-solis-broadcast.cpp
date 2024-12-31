@@ -22,7 +22,6 @@ typedef int SOCKET;
 #include <iostream>
 #include <sstream>
 #include <cjson/cJSON.h>
-#include <zlib.h>
 
 //
 // Collect power generation data from Solis inverter via modbus, then
@@ -343,52 +342,6 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   return Ret;
 }
 
-// gzip compress the JSON string ready for broadcast
-static void *GzipCompressJson(const char *Json, uint32_t &OutSize)
-{
-  z_stream Strm;
-  int Rc;
-  uint32_t Chunk = strlen(Json);
-  uint8_t *CompressBuf = (uint8_t*)malloc(Chunk);
-
-  if (!CompressBuf)
-    return nullptr;
-
-  // init
-  Strm.zalloc = Z_NULL;
-  Strm.zfree = Z_NULL;
-  Strm.opaque = Z_NULL;
-
-  Rc = deflateInit2(&Strm, -1, 8, 15 + 16, 8, 0);
-  if (Rc != Z_OK)
-  {
-    free(CompressBuf);
-    return nullptr;
-  }
-
-  // data (& size) to be compressed)
-  Strm.avail_in = Chunk;
-  Strm.next_in = (z_const Bytef *)Json;
-
-  // output buffer
-  Strm.avail_out = Chunk;
-  Strm.next_out = CompressBuf;
-
-  Rc = deflate(&Strm, Z_FINISH);
-  if (Rc != Z_STREAM_ERROR)
-    OutSize = Chunk - Strm.avail_out;
-  else
-  {
-    OutSize = 0;
-    free(CompressBuf);
-    CompressBuf = nullptr;
-  }
-
-  deflateEnd(&Strm);
-
-  return CompressBuf;
-}
-
 int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
@@ -452,7 +405,6 @@ int main(int argc, char *argv[])
   memset((void*)&BroadcastAddr, 0, sizeof(struct sockaddr_in));
   BroadcastAddr.sin_family = AF_INET;
   BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-  BroadcastAddr.sin_port = htons(52004);
   
   printf( "Starting poll\n") ;
 #ifndef WIN32
@@ -478,24 +430,13 @@ int main(int argc, char *argv[])
         jSon = GenerateJson(&ModbusSolisRegisters);
         if (jSon)
         {
-          // compress the data
-          uint32_t CompPktSize;
-          void *CompPkt = GzipCompressJson(jSon, CompPktSize);
-
           if ( Verbose )
             printf("JSON data: %s:\n", jSon);
 
           // send out to clients
-          if (CompPkt)
-          {
-#ifdef WIN32
-            if (sendto(sFd, (const char*)CompPkt, CompPktSize, 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
-#else
-            if ( sendto(sFd, CompPkt, CompPktSize, 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
-#endif
-              perror("sendto");
-            free(CompPkt);
-          }
+          BroadcastAddr.sin_port = htons(52005);
+          if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
+            perror("sendto");
           free(jSon);
         }
         else

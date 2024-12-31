@@ -3,7 +3,7 @@ CXXFLAGS=-g -O2 -D_FILE_OFFSET_BITS=64 -fmessage-length=0 -fPIC
 
 OBJS=modbus-solis-broadcast.o
 
-LIBS=-lmodbus -lboost_date_time -lboost_chrono -lcjson -lz -lboost_system
+LIBS=-lmodbus -lboost_date_time -lboost_chrono -lcjson -lboost_system
 
 APP=modbus-solis-broadcast
 
