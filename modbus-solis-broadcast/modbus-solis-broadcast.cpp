@@ -38,7 +38,8 @@ typedef struct {
   double   batteryPower; // (kW)
   double   pac;    // generation (kW)
   double   psum;   // grid in/out (kW)
-  double  familyLoadPower; // load (kW)
+  double   familyLoadPower; // load (kW)
+  double   etoday;  // generation today (kW)
 } ModbusSolisRegister_t;
 
 static bool Verbose = false;
@@ -103,9 +104,10 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
     ModbusSolisRegisters->batteryPower/=1000.0 ; // convert to kW
     ModbusSolisRegisters->familyLoadPower = (double)RegBank[12] / 1000 ; // 33147
 
-    // two further register reads are required to get the remaining info...
+    // three further register reads are required to get the remaining info...
     // 33057:33058: Current Generation
     // 33263:33264: Meter total active power
+    // 33035 Current generation today
     Rc = modbus_read_input_registers(Ctx, 33057, sizeof(uint32_t) / sizeof(uint16_t), RegBank);
     if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
     {
@@ -117,7 +119,16 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
       {
         int32_t ActivePower = MODBUS_GET_INT32_FROM_INT16(RegBank, 0);
         ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
-        Ret = true;
+
+        Rc = modbus_read_input_registers(Ctx, 33035, sizeof(uint16_t), RegBank);
+        if (Rc == sizeof(uint16_t))
+        {
+          // expressed in 0.1kWh intervals
+          ModbusSolisRegisters->etoday = (float)(RegBank[0])*0.1;
+          Ret = true;
+        }
+        else
+          printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
       }
       else
         printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
@@ -285,13 +296,13 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
     if (Node)
       cJSON_AddItemToObject(SolarData, "dataTimestamp", Node);
 
-    // "eToday" = solar energy generated today, James' solar widget
-    // uses this as a sense check for valid data. We *could* retrieve the
-    // actual data from the inverter but it's an extra register read and isn't
-    // otherwise used so just put a stub here
-    Node = cJSON_CreateNumber(1);
+    // "eToday" = solar energy generated today
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->etoday);
     if (Node)
       cJSON_AddItemToObject(SolarData, "eToday", Node);
+    Node = cJSON_CreateString("kW");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTodayStr", Node);
 
     // generation
     Node = cJSON_CreateNumber(ModbusSolisRegisters->pac);
@@ -424,6 +435,7 @@ int main(int argc, char *argv[])
           printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
           printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
           printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
+          printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
         }
 
         // generate the JSON data, aligned to the Solis API
