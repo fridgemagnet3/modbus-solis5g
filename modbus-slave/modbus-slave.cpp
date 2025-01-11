@@ -80,17 +80,7 @@ static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_ma
 
       if (Rc < 0)
       {
-#ifndef WIN32      
-        if (errno != ETIMEDOUT)
-        {
-          printf("modbus_receive: %s\n", modbus_strerror(errno));
-          Rc = -1;
-          break ;
-        }
-        else  // timeout
-#endif    
-          Poll = false;
-          Rc = 0;
+        printf("modbus_receive: %s\n", modbus_strerror(errno));
       }
       else
       {
@@ -111,7 +101,7 @@ static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_ma
 
   delete Request;
 
-  return Rc;
+  return 0;
 }
 
 // simulate a wifi logger transaction, this just dumps out representative, fixed data
