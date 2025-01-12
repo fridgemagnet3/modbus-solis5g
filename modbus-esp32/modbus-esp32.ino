@@ -35,6 +35,9 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
 {
   uint8_t Rc ;
   bool Ret = false;
+  const uint32_t TransactDelay = 80u ; // delay between each register request
+
+  memset(ModbusSolisRegisters,0,sizeof(ModbusSolisRegister_t)) ;
 
   // most of what we need is in a single grouping
   // see RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf
@@ -54,6 +57,12 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
     ModbusSolisRegisters->batteryPower/=1000.0 ; // convert to kW
     ModbusSolisRegisters->familyLoadPower = (double)ModbusInst.getResponseBuffer(12) / 1000 ; // 33147
 
+    // delay between executing individual requests. Looking at the timing of the traffic via 'modbus-sniffer' shows that
+    // the wifi logger waits anywhere betwen 40-100ms between requests. The modbus spec itself also mandates that a minimum
+    // 3.5 character delay should be present between requests. This also helps (I think) in terms of discarding any frameing errors
+    // injected by the transceivers turning on and off
+    delay(TransactDelay);
+    
     // two further register reads are required to get the remaining info...
     // 33057:33058: Current Generation
     // 33263:33264: Meter total active power
@@ -63,6 +72,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
       uint32_t Generation = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1);   // expressed in watts
       ModbusSolisRegisters->pac = (double)Generation / 1000 ;  // return as kW
 
+      delay(TransactDelay);
       Rc = ModbusInst.readInputRegisters(33263,2) ;
       if ( Rc == ModbusInst.ku8MBSuccess)
       {
@@ -71,13 +81,13 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
         Ret = true;
       }
       else
-        Serial.printf("readInputRegisters: %d\n", Rc) ;
+        Serial.printf("readInputRegisters 33135-33150: %x\n", Rc) ;
     }
     else
-      Serial.printf("readInputRegisters: %d\n", Rc) ;
+      Serial.printf("readInputRegisters 33057: %x\n", Rc) ;
   }
   else
-    Serial.printf("readInputRegisters: %d\n", Rc) ;
+    Serial.printf("readInputRegisters 33263: %x\n", Rc) ;
 
   return Ret ;
 }
@@ -175,13 +185,29 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   return Ret;
 }
 
-// TODO: Figure out if we need to periodically call this to keep time in sync
 static void GetNtpTime(void)
 {
   const long GmOffsetSec = 0;
   const int  DaylightOffsetSec = 3600;
 
+  // once initially set, this should periodically re-sync to the server
   configTime(GmOffsetSec, DaylightOffsetSec, NTP_SERVER);
+}
+
+// modbus callbacks invoked before and after transmission
+static void ModbusPreTransmit(void)
+{
+  // enable the transmitter
+  digitalWrite(RS485_DIR, HIGH);
+}
+
+static void ModbusPostTransmit(void)
+{
+  // a delay is necessary to allow for the UART to finish clocking the data out by trial & error
+  // this appears to be the minimum amount before you start seeing CRC failures on the other side
+  delay(20) ;
+  // disabled the transmitter (in the process, re-enable the receiver)
+  digitalWrite(RS485_DIR, LOW);
 }
 
 void setup() 
@@ -192,12 +218,19 @@ void setup()
   // debug serial
   Serial.begin(115200);
 
+  // setup the RS485 transceiver enable pin and default to receive
+  pinMode(RS485_DIR, OUTPUT);
+  digitalWrite(RS485_DIR, LOW);
+
   // modbus serial
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   // 1s rx timeout
   Serial2.setTimeout(1000) ;
 
   ModbusInst.begin(MODBUS_SLAVE_ID,Serial2);
+  // setup the callbacks for enabling/disabling the transceivers
+  ModbusInst.preTransmission(ModbusPreTransmit);
+  ModbusInst.postTransmission(ModbusPostTransmit);
 
   // connect to wifi
   Serial.println("Connecting to WiFi");
@@ -228,7 +261,7 @@ void setup()
     BroadcastAddr.sin_family = PF_INET;
     BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
     // currently use different port from prototypes for test purposes
-    BroadcastAddr.sin_port = htons(52005);
+    BroadcastAddr.sin_port = htons(52006);
   }
   Serial.println("Setup done");
 }

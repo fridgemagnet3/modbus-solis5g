@@ -31,12 +31,66 @@ static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_ma
   const uint32_t LoggerInterval = 60u;
   uint32_t Timeout = LoggerInterval;
   bool Poll = true;
+  uint32_t Sec, uSec ;
 
   if (!Ctx)
   {
     printf("modbus_new_rtu: %s\n", modbus_strerror(errno));
     return -1 ;
   }
+
+#ifndef WIN32
+  // configure the link to use RTS, for a USB connected device this (I don't think)
+  // will actually do anything but it does cause the RTS delay to be honoured which is
+  // required for a RS485 link in order to allow time for the tranceivers to be turned off/on
+  if ( modbus_rtu_set_rts ( Ctx, MODBUS_RTU_RTS_UP ) < 0 )
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return -1;
+  }
+
+  // set the RTS delay, this is the delay from receiving the request to responding to it
+  // by default (if RTS mode is unset), there is no delay, which is fine for RS232 but not for
+  // 485 where we need to allow time for the transceivers to turn off/on
+  // Based on traffic from modbus-sniffer, the Solis inverter typically takes anywhere 
+  // between ~35ms to 100ms to respond so we err on the conversative side here
+  if ( modbus_rtu_set_rts_delay(Ctx, 30*1000 ) == 0 )
+    printf( "RTS delay: %d\n", modbus_rtu_get_rts_delay(Ctx)) ;
+  else
+  {
+    printf("modbus_rtu_set_rts_delay: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return -1;
+  }
+
+  // set timeout for receiving individual bytes. In my setup, when the ESP32 turns OFF
+  // it's transmitters, it generates framing errors (similar to behaviour seen with the
+  // inveter/logger although it's unclear whether this is turning them on/off). Given this
+  // happens at the END of the request and there are now delays applied on the ESP side
+  // (this I think is also required to some degree in order to adhere to the Modbus spec)
+  // When those stray bytes are received, they should trigger the timeout condition,
+  // resulting the the data then being discarded. Operationally, you'll see this 
+  // generating a 'Connection timed out' message between every request.
+  // What this won't deal with is any noise arising from when the transmitters are turned ON
+
+  // 40ms is also a bit trial/error based on the behaviour of the ESP32, which has an 80ms delay.
+  // dropping it further can result in timeouts being triggered mid transaction - all of which may be
+  // due to the accuracy of the timers used by each device
+  if ( modbus_set_byte_timeout ( Ctx, 0, 40*1000 ) == 0 )
+  {
+    if ( modbus_get_byte_timeout ( Ctx, &Sec, &uSec ) == 0 )
+      printf( "Byte timeout: %u:%u\n", Sec, uSec ) ;
+    else
+      printf("modbus_get_byte_timeout: %s\n", modbus_strerror(errno));
+  }
+  else
+  {
+    printf("modbus_get_byte_timeout: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return -1;
+  }
+#endif
 
   modbus_set_debug(Ctx, 1);
 
