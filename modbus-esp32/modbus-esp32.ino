@@ -17,10 +17,11 @@ typedef struct {
   double   pac;    // generation (kW)
   double   psum;   // grid in/out (kW)
   double  familyLoadPower; // load (kW)
+  double   etoday;  // generation today (kW)
 } ModbusSolisRegister_t;
 
 // state machine...
-typedef enum { SYNC_INIT, SYNC_LOGGER, WAIT_IDLE, MODBUS_REQUEST } SolisState_t ;
+typedef enum { SYNC_INIT, SYNC_LOGGER, CONSUME_LOGGER, WAIT_IDLE, MODBUS_REQUEST } SolisState_t ;
 static SolisState_t SolisState = SYNC_INIT ;
 
 // the modbusmaster instance
@@ -63,9 +64,10 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
     // injected by the transceivers turning on and off
     delay(TransactDelay);
     
-    // two further register reads are required to get the remaining info...
+    // three further register reads are required to get the remaining info...
     // 33057:33058: Current Generation
     // 33263:33264: Meter total active power
+    // 33035 Current generation today
     Rc = ModbusInst.readInputRegisters(33057,2) ;
     if ( Rc == ModbusInst.ku8MBSuccess)
     {
@@ -78,16 +80,26 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
       {
         int32_t ActivePower = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1) ;
         ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
-        Ret = true;
+
+        delay(TransactDelay);
+        Rc = ModbusInst.readInputRegisters(33035,1) ;
+        if ( Rc == ModbusInst.ku8MBSuccess)
+        {
+          // expressed in 0.1kWh intervals
+          ModbusSolisRegisters->etoday = (float)(ModbusInst.getResponseBuffer(0))*0.1;
+          Ret = true;
+        }
+        else
+          Serial.printf("readInputRegisters 33035: %x\n", Rc) ;
       }
       else
-        Serial.printf("readInputRegisters 33135-33150: %x\n", Rc) ;
+        Serial.printf("readInputRegisters 33263: %x\n", Rc) ;
     }
     else
       Serial.printf("readInputRegisters 33057: %x\n", Rc) ;
   }
   else
-    Serial.printf("readInputRegisters 33263: %x\n", Rc) ;
+    Serial.printf("readInputRegisters 33135-33150: %x\n", Rc) ;
 
   return Ret ;
 }
@@ -128,13 +140,13 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
     if (Node)
       cJSON_AddItemToObject(SolarData, "dataTimestamp", Node);
 
-    // "eToday" = solar energy generated today, James' solar widget
-    // uses this as a sense check for valid data. We *could* retrieve the
-    // actual data from the inverter but it's an extra register read and isn't
-    // otherwise used so just put a stub here
-    Node = cJSON_CreateNumber(1);
+    // "eToday" = solar energy generated today
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->etoday);
     if (Node)
       cJSON_AddItemToObject(SolarData, "eToday", Node);
+    Node = cJSON_CreateString("kW");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTodayStr", Node);
 
     // generation
     Node = cJSON_CreateNumber(ModbusSolisRegisters->pac);
@@ -271,7 +283,7 @@ void loop()
   uint8_t ScratchBuf[256] ;
   static unsigned long InitTime, SyncTime ;
   const unsigned long MinSyncTime = 4000u ;
-  const unsigned long BusIdleTime = 9900u ;  // ~10s fractionally less so we trip on the 10s rather than 11s boundary
+  const unsigned long BusIdleTime = 8000u ; 
   // should have 50s worth of free time, which allows for 3 requests at 20s intervals
   const uint32_t RequestsPerCycle = 3;
   const uint32_t PollDelay = 20000;
@@ -295,16 +307,14 @@ void loop()
       // poll for data available
       if (Serial2.available() )
       {
-        SolisState = WAIT_IDLE ;
-        // save time at which data arrives
-        SyncTime = millis() ;
-        Serial.println("Wait for bus idle...");
+        SolisState = CONSUME_LOGGER ;
+        Serial.println("Consume logger data...");
       }
       else
-        delay(1000) ;
+        delay(500) ;
       break ;
-
-    case WAIT_IDLE :
+      
+    case CONSUME_LOGGER :
 
       // data is on the bus, that's what we're waiting for
 
@@ -320,12 +330,30 @@ void loop()
           SolisState = SYNC_INIT ;
         }
       }
+      else
+      {
+        // had no data for 1s
+        SolisState = WAIT_IDLE ;
+        // save time at which data stops arriving
+        SyncTime = millis() ;
+        Serial.printf("Wait for data elapsed %d ms\n", millis()-InitTime);
+        Serial.println("Wait for bus idle...");
+      }
+      break ;
+
+    case WAIT_IDLE :
+
+      // wait for 10s period of inactivity
+      if (Serial2.available() )
+        SolisState = CONSUME_LOGGER ;
       else if ( (millis() - SyncTime) > BusIdleTime )  // test for ~10s of inactivity ie. no data received in this period
       {
         // bus is now clear, we should now have a good 50s time spare now
         SolisState = MODBUS_REQUEST ;
         Serial.printf("Wait for idle elapsed %d ms\n", millis()-SyncTime);
       }
+      else
+        delay(200);
       break ;
 
     case MODBUS_REQUEST :
@@ -350,7 +378,16 @@ void loop()
             free(jSon);
           }
           else
-            Serial.printf("Failed to retrieve modbus data from inverter\n");
+            Serial.printf("Failed to encode JSON data\n");
+      }
+      else
+      {
+        // if a transaction fails, don't attempt any more in this window because the timings are likely to
+        // be screwed up, restart the state machine to sync with the wifi logger
+        RequestCycle = 0u ;
+        SolisState = SYNC_INIT ;
+        Serial.printf("Failed to retrieve modbus data from inverter\n");
+        break ;
       }
 
       // should have 50s worth of free time, which allows for 3 requests at 20s intervals
