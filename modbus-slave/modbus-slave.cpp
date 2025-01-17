@@ -22,13 +22,12 @@
 // when connected to the wifi logger
 //
 
-static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_mapping_t *ModBusMapping)
+static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_mapping_t *ModBusMapping, uint32_t LoggerInterval = 60u)
 {
   using namespace boost::chrono;
   modbus_t *Ctx = modbus_new_rtu(Device, 9600, 'N', 8, 1);
   uint8_t *Request;
   int Rc;
-  const uint32_t LoggerInterval = 60u;
   uint32_t Timeout = LoggerInterval;
   bool Poll = true;
   uint32_t Sec, uSec ;
@@ -159,7 +158,7 @@ static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_ma
 }
 
 // simulate a wifi logger transaction, this just dumps out representative, fixed data
-static bool SimulateBusTransaction(const char *Device)
+static bool SimulateBusTransaction(const char *Device, uint32_t &Elapsed)
 {
   static uint32_t Cycles = 0;
   int Fd ;
@@ -192,16 +191,34 @@ static bool SimulateBusTransaction(const char *Device)
   // every 5 minutes, simulate the register read transaction performed by the logger
   if (!(Cycles % 5))
   {
+    // Primarily this is about simulating the timing behaviour. There are 13 distinct
+    // Modbus transactions performed occurring at anywhere from 136ms thru 242ms apart
+    // overall the time taken is around 3s
+    const uint32_t TransactCount = 13u ;
+    const uint32_t TransactSize = __read_transact_bin_len / TransactCount ;
+    uint8_t *Ptr = __read_transact_bin ;
+    const useconds_t TransactDelay = 240*1000 ; // 
+
     printf("Performing logger read register transactions\n");
-    if (write(Fd, __read_transact_bin, __read_transact_bin_len) < 0)
+    for(uint32_t i=0 ; i < TransactCount ; i++ )
     {
-      perror("write");
-      Status = false;
+      if (write(Fd, Ptr, TransactSize) < 0)
+      {
+        perror("write");
+        Status = false;
+      }
+      Ptr+=TransactSize ;
+      usleep(TransactDelay) ;
     }
   }
   Cycles++;
 
   close(Fd);
+
+  boost::posix_time::ptime EndTime(boost::posix_time::second_clock::local_time());
+  boost::posix_time::time_duration ElapsedTime = EndTime - RequestTime ;
+  Elapsed = ElapsedTime.total_seconds() ;
+  printf( "Elapsed: %u s\n", Elapsed) ;
 
   return Status;
 }
@@ -215,6 +232,7 @@ int main(int argc, char *argv[])
   int32_t Rc = 1 ;
   uint16_t *RegPtr = (uint16_t*)registers_bin;
   bool SimulateLogger = true;
+  uint32_t Elapsed = 0 ;
 
   if (argc < 2)
   {
@@ -254,8 +272,8 @@ int main(int argc, char *argv[])
   while (Rc>=0)
   {
     if (SimulateLogger)
-      SimulateBusTransaction(argv[1]);
-    Rc = ModBusHandleResponse(argv[1], Slave, ModBusMapping);
+      SimulateBusTransaction(argv[1],Elapsed);
+    Rc = ModBusHandleResponse(argv[1], Slave, ModBusMapping,60-Elapsed);
   }
 
   modbus_mapping_free(ModBusMapping);
