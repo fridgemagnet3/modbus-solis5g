@@ -215,10 +215,7 @@ static void ModbusPreTransmit(void)
 
 static void ModbusPostTransmit(void)
 {
-  // a delay is necessary to allow for the UART to finish clocking the data out by trial & error
-  // this appears to be the minimum amount before you start seeing CRC failures on the other side
-  delay(20) ;
-  // disabled the transmitter (in the process, re-enable the receiver)
+  // disable the transmitter (in the process, re-enable the receiver)
   digitalWrite(RS485_DIR, LOW);
 }
 
@@ -272,8 +269,7 @@ void setup()
     memset((void*)&BroadcastAddr, 0, sizeof(struct sockaddr_in));
     BroadcastAddr.sin_family = PF_INET;
     BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-    // currently use different port from prototypes for test purposes
-    BroadcastAddr.sin_port = htons(52006);
+    BroadcastAddr.sin_port = htons(52005);
   }
   Serial.println("Setup done");
 }
