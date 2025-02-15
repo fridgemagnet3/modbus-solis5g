@@ -280,6 +280,7 @@ void loop()
   static unsigned long InitTime, SyncTime ;
   const unsigned long MinSyncTime = 4000u ;
   const unsigned long BusIdleTime = 8000u ; 
+  const unsigned long LoggerTimeout = 90*1000u ;  // 1.5min
   // should have 50s worth of free time, which allows for 3 requests at 20s intervals
   const uint32_t RequestsPerCycle = 3;
   const uint32_t PollDelay = 20000;
@@ -307,7 +308,14 @@ void loop()
         Serial.println("Consume logger data...");
       }
       else
+      {
         delay(500) ;
+        if ( (millis() - InitTime) > LoggerTimeout )
+        {
+          Serial.println("Timed out waiting for logger activity\n");
+          SolisState = MODBUS_REQUEST ;
+        }
+      }
       break ;
       
     case CONSUME_LOGGER :
