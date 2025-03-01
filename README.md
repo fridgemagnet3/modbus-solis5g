@@ -24,11 +24,13 @@ Modbus is a client/server architecture, the dongle is the master (it issues the 
 
 RS485 is "multi-drop" meaning you can hang multiple things off the bus. My plan was therefore to wire up a cable, with plug/socket at each end, this carries the existing connection to/from the wifi dongle. I would then hang an additional RS485 interface from mid way along the cable. It's worth reading up on RS485, there are various rules about how things should be connected, terminated and so on. Shielded twisted pair cabling is recommended, I've seen it suggested that CAT-5 cable will work over short distances however to avoid any issues, I went out and bought some proper cabling.
 
-The project is constructed in two parts - the first, is essentially the "proof of concept" and for this I used a RS485/USB adaptor connected to a Raspberry Pi. If everything pans out, part 2 replaces this with an ESP32 microcontroller.
+The project was constructed in two parts - the first, the "proof of concept" used a RS485/USB adaptor connected to a Raspberry Pi (pictured below). I used this to investigate the protocol then prototype the software.
 
 ![20241103_180441](https://github.com/user-attachments/assets/29c87abe-2c4b-43d1-8a9e-ae0e4fc55c1a)
 
-At the current time, part 1 is complete and I'm starting to look at the ESP32 solution.
+The second part replaces this with a ESP32 microcontroller, powered of the 5V supply that connects to the logger.
+
+![20250301_170933](https://github.com/user-attachments/assets/4aea6824-fb2a-4ca0-a5db-8a98bb198143)
 
 ### Spurious characters
 I believe that the invertor (and possibly the Wifi logger as well) is generating spurious characters on the serial line in or around the time it responds to a request. This can be seen in the [sample log file](data/2024-11-08_12-07-44.log) where it reports things like _Skipped 2 bytes in stream looking for next header_. In the case of the RS485/USB adaptor used during the first part of the project, this seems to materialise as up to 3 NULL bytes which I believe are actually _serial break_ characters (or framing errors). Where the ESP-32 module is concerned, I see just random characters. In the process of investigating this, I've tried adding in termination resistors (to the connectors at both end of the cable since I don't believe either the interter or logger has them) and bias reistors (even though I don't believe the MAX devices need them). Neither of which has made any difference, which based on the behaviour I was seeing, frankly didn't think it would. 
@@ -38,9 +40,9 @@ As an extra observation, as part of my simulated test setup, I've had the ESP-32
 As a result, I've had to implement software workarounds, in effect to discard any incoming bytes up until the expected start of response sequence is detected. In the case of the Linux applications, this is in the form of a patch against the current. 3.1.11 release of the libmodbus library, this can be found in the [libmodbus folder](libmodbus/). For the ESP-32 module, I've created a fork of the [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster) library.
 
 ## ESP-32 Module
-For the finished product, I'm planning on replacing the Raspberry Pi with an ESP32 WROOM-32 module. These are inexpensive, nifty little microcontrollers which have a bunch of I/O (including serial) plus built in Wifi. The hope it that I'll also be able to power it from the 5V supply that connects to the wifi logger, therefore reducing the need for further cabling.
+For the finished product, I replaced the Raspberry Pi with an ESP32 WROOM-32 module. These are inexpensive, nifty little microcontrollers which have a bunch of I/O (including serial) plus built in Wifi. 
 
-Here is my initial test setup. 
+This was my initial test setup. 
 
 ![20241231_195839](https://github.com/user-attachments/assets/0fdb9c91-805f-46f1-a657-924b7de08527)
 
@@ -59,16 +61,20 @@ Note that you can buy RS-485 transceiver modules similar to the RS-485/USB adapt
 
 Two wire RS-485 is **half duplex** and this is a crucial difference from plain old RS-232 as it is necessary to explictly turn on and off the transmitters & receivers in order to avoid collisions on the bus. Using the RS-485/USB adapter this is transparant as it's done by the hardware on the board. However since we're interfacing directly to the transceiver chip, this needs to be done by the software and is controlled by one of the GPIOs from the ESP-32 (GPIO-4 in this case), which is connected to the ~RE (Receiver Output Enable) and DE (Data Output Enable) pins. As ~RE is active low and DE is active high this means we can control both with the single GPIO. The default, normal operating state of the software is to have the receiver enabled, the toggling into transmit mode (and back again) is controlled via calbbacks passed into the Modbus library which invoke them at the appropriate points during the transaction.
 
+![schematic](https://github.com/user-attachments/assets/a093913b-f679-46b6-b560-40dc0281505c)
+
 ### Inverter
 
-Having had the the breadboard setup connected to the inverter now for a week or so with no real problems, I've now migrated it to a more permanent, stripboard based solution.
+After Having had the the breadboard setup connected to the inverter now for a week or so with no real problems, I migrated it to a more permanent, stripboard based solution.
 
 ![20250201_130430](https://github.com/user-attachments/assets/6a6d2dc6-3bbf-4f17-93a8-78bbb3b23fd2)
 
-At present, I'm still powering it from the micro-USB connector, those two unused pins on the 4W connector are intended for connecting it directly to a 5V supply. When it's powered via that route, it won't then be possible to get to the debug serial via the USB connector so that 4 pin header is to bring it out for connection to something like a Raspberry Pi instead.
+In this picture, I'm still powering it from the micro-USB connector, those two unused pins on the 4W connector are intended for connecting it directly to the 5V supply. When it's powered via that route, it won't then be possible to get to the debug serial via the USB connector so that 4 pin header is to bring it out for connection to something like a Raspberry Pi instead.
+
+![stripboard](https://github.com/user-attachments/assets/92398d00-1148-46f1-81ac-eb5e879a39ba)
 
 ## Software
-There's 3 distinct applications currently here. All are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however these only offer limited functionality, in particular anything that does direct serial port receives & transmits won't work plus you'll need to get hold off and/or build the additional libraries. In short, these were really more for me to do some initial offline debug & test.
+There's 4 distinct applications currently here. The first 3 are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however these only offer limited functionality, in particular anything that does direct serial port receives & transmits won't work plus you'll need to get hold off and/or build the additional libraries. In short, these were really more for me to do some initial offline debug & test. The fourth application is the [Arduino sketch for the ESP32.](#modbus-esp32)
 
 The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the applications which interface to the serial ports directly configure any of the serial settings, you'll need to do that first by hand which is normally just a case of doing something like:
 
@@ -114,3 +120,11 @@ then in another terminal, run:
 ``./modbus-solis-broadcast /dev/ttyUSB0``
 
 The latter should wait to sync with the simulated wifi transactions sent from the slave, then proceed to issue the requests to retrieve the current solar data values.
+
+### modbus-esp32 
+Dependencies: [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster)
+
+This is the Arduino sketch for the ESP-32 port of [modbus-solis-broadcast](#modbus-solis-broadcast). As a minimum, you will need to edit the [config.h](modbus-esp32/config.h)  file to define your Wifi SSID and password. Additionally, if you are using different GPIO pins to those shown on the schematic, you'll need to edit those settings as well.
+
+
+
