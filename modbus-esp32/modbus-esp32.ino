@@ -105,7 +105,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
 }
 
 // generate JSON message aligned to Solis API from the register data
-static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
+static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uint32_t LoggerFail)
 {
   cJSON *SolarJson = cJSON_CreateObject();
   cJSON *Node;
@@ -191,6 +191,12 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   if (Node)
     cJSON_AddItemToObject(SolarJson, "success", Node);
 
+  // this is non-standard but provides an indication of if (and how many times)
+  // the logger has failed
+  Node = cJSON_CreateNumber(LoggerFail);
+  if (Node)
+    cJSON_AddItemToObject(SolarJson, "loggerFail", Node);
+
   // generate return string
   Ret = cJSON_Print(SolarJson);
   cJSON_Delete(SolarJson);
@@ -269,6 +275,7 @@ void setup()
     memset((void*)&BroadcastAddr, 0, sizeof(struct sockaddr_in));
     BroadcastAddr.sin_family = PF_INET;
     BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+    // currently use different port from prototypes for test purposes
     BroadcastAddr.sin_port = htons(52005);
   }
   Serial.println("Setup done");
@@ -288,6 +295,7 @@ void loop()
   ModbusSolisRegister_t ModbusSolisRegisters;
   char *jSon;
   static uint32_t RequestCycle = 0 ;
+  static uint32_t LoggerFail = 0u ;
 
   switch (SolisState)
   {
@@ -313,7 +321,10 @@ void loop()
         if ( (millis() - InitTime) > LoggerTimeout )
         {
           Serial.println("Timed out waiting for logger activity\n");
+          LoggerFail++ ;
+          // do one cycle then come back here
           SolisState = MODBUS_REQUEST ;
+          RequestCycle = RequestsPerCycle - 1 ;
         }
       }
       break ;
@@ -372,7 +383,7 @@ void loop()
           Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
 
           // generate the JSON data, aligned to the Solis API
-          jSon = GenerateJson(&ModbusSolisRegisters);
+          jSon = GenerateJson(&ModbusSolisRegisters,LoggerFail);
           if (jSon)
           {
             Serial.printf("JSON data: %s:\n", jSon);
