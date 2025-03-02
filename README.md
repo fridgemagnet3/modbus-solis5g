@@ -28,7 +28,7 @@ The project was constructed in two parts - the first, the "proof of concept" use
 
 ![20241103_180441](https://github.com/user-attachments/assets/29c87abe-2c4b-43d1-8a9e-ae0e4fc55c1a)
 
-The second part replaces this with a ESP32 microcontroller, powered of the 5V supply that connects to the logger.
+The second part replaces this with an ESP32 microcontroller, powered of the 5V supply from the inverter.
 
 ![20250301_170933](https://github.com/user-attachments/assets/4aea6824-fb2a-4ca0-a5db-8a98bb198143)
 
@@ -49,13 +49,12 @@ This was my initial test setup.
 It's connected to the RS232 port of a Raspberry Pi running my [modbus-slave](#modbus-slave) app which simulates the behaviour of the inverter and wifi logger. As both boards use 3.3V logic levels, this provides a simple environment for me to develop & test the software for the ESP32. To date, I've now managed to successfully port across the [modbus-solis-broadcast](#modbus-solis-broadcast) application which is now fully working in the simulated environment. The next step will be to replace the RS232 link with RS485.
 
 ### RS-485
-Took a little longer than anticipated to get this next bit working, in the process having to make a few tweaks to my [modbus-slave](#modbus-slave) simulator app to get it to work properly with RS485 but anyway here's the updated hardware.
-
-![20250112_115403](https://github.com/user-attachments/assets/9af33c16-631b-48bb-9e9a-014e2b3b1a2a)
 
 The main addition to my test setup is the presence of a [MAX3485 RS-485 transceiver](https://www.analog.com/en/products/max3485.html), this basically converts the 3.3V serial from the ESP-32 to RS-485. Connected to the other end of this is my original RS-485/USB adaptor as used for the initial prototypes, which is then attached to a Raspberry Pi (although any Linux box would do at this point) running [modbus-slave](#modbus-slave).
 
-That cluster of reistors is the RS-485 termination, 120R spread across 3 because I didn't have one that exact value... I don't think it's strictly needed for this short length run but it's there whilst I investigate various behavioural issues.
+![20250112_115403](https://github.com/user-attachments/assets/9af33c16-631b-48bb-9e9a-014e2b3b1a2a)
+
+That cluster of reistors is the RS-485 termination, 120R spread across 3 because I didn't have one that exact value... I don't think it's strictly needed for this short length run but it was there whilst I investigated various behavioural issues.
 
 Note that you can buy RS-485 transceiver modules similar to the RS-485/USB adaptors however in this instance it made more sense to attach the chip directly as ultimately I want to mount everything on a single PCB and that would just be another module flapping around. Ultimately they aren't much more than a PCB with a MAX485 and some discrete logic anyway. Plus there are other reasons why it could be beneficial which I'll come onto in a bit.
 
@@ -65,7 +64,7 @@ Two wire RS-485 is **half duplex** and this is a crucial difference from plain o
 
 ### Inverter
 
-After Having had the the breadboard setup connected to the inverter now for a week or so with no real problems, I migrated it to a more permanent, stripboard based solution.
+After having had the the breadboard setup connected to the inverter now for a week or so with no real problems, I migrated it to a more permanent, stripboard based solution.
 
 ![20250201_130430](https://github.com/user-attachments/assets/6a6d2dc6-3bbf-4f17-93a8-78bbb3b23fd2)
 
@@ -74,7 +73,7 @@ In this picture, I'm still powering it from the micro-USB connector, those two u
 ![stripboard](https://github.com/user-attachments/assets/92398d00-1148-46f1-81ac-eb5e879a39ba)
 
 ## Software
-There's 4 distinct applications currently here. The first 3 are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however these only offer limited functionality, in particular anything that does direct serial port receives & transmits won't work plus you'll need to get hold off and/or build the additional libraries. In short, these were really more for me to do some initial offline debug & test. The fourth application is the [Arduino sketch for the ESP32.](#modbus-esp32)
+There are 4 distinct applications currently here. The first 3 are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however these only offer limited functionality, in particular anything that does direct serial port receives & transmits won't work plus you'll need to get hold off and/or build the additional libraries. In short, these were really more for me to do some initial offline debug & test. The fourth application is the [Arduino sketch for the ESP32.](#modbus-esp32)
 
 The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the applications which interface to the serial ports directly configure any of the serial settings, you'll need to do that first by hand which is normally just a case of doing something like:
 
@@ -85,7 +84,7 @@ Dependencies: boost-crc, boost-datetime (sudo apt-get install libboost-dev libbo
 
 As the name suggests, this is an app designed to sniff traffic on the serial link, essentially to capture and profile the transactions performed by the wifi dongle. From this I was able to asertain that the wifi dongle, for the most part only ever performs relatively short transactions, every minute and retrieves the bulk of the data every 5 minutes. This also let me determine which of the, several Solis Modbus documents that are out there correspond to the register set of the inverter, that being [this document](https://www.scss.tcd.ie/Brian.Coghlan/Elios4you/RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf). Based on this, the tool will also decode a (very limited) subset of the registers, in turn when then allowed me to figure out how to decode the [registers holding active generation data](registers.txt)
 
-The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data), included an annotated spreadsheet, generated from the csv. This shows the typical wifi dongle behaviour as a result of leaving the sniffer running for a couple of days, plus some interesting oddities which seem to happen once a day (search for the word _anomaly_).
+The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data), included an annotated spreadsheet, generated from the csv. This shows the typical wifi dongle behaviour as a result of leaving the sniffer running for a couple of days, plus some interesting oddities which seem to happen once a day (search for the word _anomaly_) - see also issue #2
 
 Example usage:
 
@@ -96,7 +95,7 @@ Dependencies: boost-chrono, boost-datetime, boost-system, cjson, libmodbus (sudo
 
 This is the app that actually issues Modbus requests to the inverter to retrieve the current solar metrics. It then JSON encodes them, using the same naming convention as the Solis API and [sends them out as a broadcast UDP packet](#udp-broadcast) on port 52005. 
 
-To achieve the requirement of cooperating with the Wifi dongle, the application first waits for the next burst of serial traffic on the link (signalling the dongle performing a transaction with the inverter). It then waits for a 10s period of inactivity on the bus, ensuring that the dongle has finished. At which point it then issues requests to read the necssary registers holding the current solar generation data, which if successful are then sent as a UDP broadcast to the local network. It then performs this process twice more, with a 20s wait between each request before then looping back to sync with the wifi dongle. Under normal circumstances, this results in the solar displays being updated every 20s. I've had it running for a few weeks now and have not seen any problems or seen any evidence of the data retrieved by the dongle becoming corrupted. Again, there are some [sample logs in the data section](data/).
+To achieve the requirement of cooperating with the Wifi dongle, the application first waits for the next burst of serial traffic on the link (signalling the dongle performing a transaction with the inverter). It then waits for a 10s period of inactivity on the bus, ensuring that the dongle has finished. At which point it then issues requests to read the necssary registers holding the current solar generation data, which if successful are then sent as a UDP broadcast to the local network. It then performs this process twice more, with a 20s wait between each request before then looping back to sync with the wifi dongle. Under normal circumstances, this results in the solar displays being updated every 20s. There are some [sample logs in the data section](data/).
 
 Example usage:
 
@@ -109,7 +108,7 @@ modbus-slave does a passable emulation of the Solis inverter and wifi dongle. If
 
 By default, it will generate simulated Modbus transactions, which would normally be initiated by the dongle, every minute. If you use the modbus-sniffer app, you should be able to see these arrive and be decoded. It will also respond to Modbus register queries (for example, as issued by the modbus-solis-broadcast app), responsing with fixed register values taken from my own inverter. The periodic transactions can also be disabled, if required via a command line option, in which case it will simply listen to and respond with register requests.
 
-I've developed this primarily to support the next part of the project so I can test & debug my ESP32 solution in a test environment, prior to connecting it to the inverter.
+I developed this primarily to support test & debug of the ESP32 solution, prior to connecting it to the inverter.
 
 Example usage:
 
