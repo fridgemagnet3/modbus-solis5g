@@ -649,7 +649,11 @@ int main(int argc, char *argv[])
 			else if ( Rc < 0)
 				break ;
 			else // data still pending, read and discard it
-				read(Fd,ScratchBuf,sizeof(ScratchBuf) ) ;
+			{
+				Rc = read(Fd,ScratchBuf,sizeof(ScratchBuf) ) ;
+				if ( Rc > 0 && BinLog )
+					fwrite(ScratchBuf,1,Rc,BinLog) ;
+			}
 		}		
 	 }
 #endif
