@@ -621,7 +621,7 @@ int main(int argc, char *argv[])
 	 }
 #ifndef WIN32
 	 // if we get a decode error, try and resync the stream. In effect this
-	 // just waits for at least a 30s gap in the serial stream before continuing
+	 // just waits for at least a 10s gap in the serial stream before continuing
 	 if ( DecodeError && IsLive )
 	 {
 	 	fd_set FdSet ;
@@ -636,7 +636,7 @@ int main(int argc, char *argv[])
       printf( "Decode error, attempting to re-sync\n") ;
 		while(!NextPacket)
 		{
-			TimeOut.tv_sec = 30 ;
+			TimeOut.tv_sec = 10 ;
 			TimeOut.tv_usec = 0 ;
 			// poll for data
 			Rc = select(Fd+1,&FdSet,NULL,NULL,&TimeOut);
