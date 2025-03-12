@@ -73,19 +73,24 @@ static int32_t Read(int Fd, void *Buf, size_t Count)
 
 // try and locate start of next message by looking for a sequence matching the slave id
 // and a valid function
-static bool ReadMessageHeader(int Fd, uint8_t Slave, uint8_t &Function)
+static bool ReadMessageHeader(int Fd, uint8_t &Slave, uint8_t &Function)
 {
   uint8_t Buf;
   uint32_t Skipped = 0;
-
+  uint8_t Cmd ;
+  
   while (Read(Fd, &Buf, sizeof(Buf)) == sizeof(Buf))
   {
-    if (Slave == Buf)
+    // the logger supports up to 10 slaves, so restrict expected range
+    if (Buf >= 0x01 && Buf <= 0xA )
     {
+      Slave = Buf ;
       if (Read(Fd, &Buf, sizeof(Buf)) == sizeof(Buf))
       {
         // an error response from the inverter sets the top bit in the function code
-        if ( (Buf & 0x7f) < CmdCount)
+        Cmd = Buf & 0x7f ;
+        // logger only issues these command types
+        if ( Cmd == 0x3 || Cmd == 0x04 || Cmd == 0x06 || Cmd == 0x10 )
         {
           Function = Buf;
           printf("Skipped %u bytes in stream looking for next header\n",Skipped);
@@ -102,7 +107,7 @@ static bool ReadMessageHeader(int Fd, uint8_t Slave, uint8_t &Function)
 }
 
 // process a command request
-static bool ProcessRequest(int Fd, uint8_t Slave, uint8_t &Function,bool &Valid,std::vector<uint16_t> &ResponseData)
+static bool ProcessRequest(int Fd, uint8_t &Slave, uint8_t &Function,bool &Valid,std::vector<uint16_t> &ResponseData)
 {
   using namespace boost::posix_time;
   uint8_t Request[256];
@@ -255,7 +260,10 @@ static bool ProcessRequest(int Fd, uint8_t Slave, uint8_t &Function,bool &Valid,
         perror("Failed to read data");
     }
     else
-      perror("Failed to read data");
+    {
+      printf("Length is unknown\n");
+      return true ;
+    }
   }
   else
     printf("Unrecognized command, cannot parse message\n");
@@ -612,8 +620,10 @@ int main(int argc, char *argv[])
   // start processing traffic
   while (!DecodeError)
   {
-  	 DecodeError = !ProcessRequest(Fd, Slave, Function, Valid, ResponseData) ;
-  	 if ( !DecodeError )
+      uint8_t MsgSlave ;
+      
+  	 DecodeError = !ProcessRequest(Fd, MsgSlave, Function, Valid, ResponseData) ;
+  	 if ( !DecodeError && (MsgSlave == Slave))
   	 {
     	DecodeError = !ProcessResponse(Fd, Slave, Function,Valid,ResponseData,Verbose) ;
     	if ( !DecodeError && Valid )
@@ -621,7 +631,7 @@ int main(int argc, char *argv[])
 	 }
 #ifndef WIN32
 	 // if we get a decode error, try and resync the stream. In effect this
-	 // just waits for at least a 30s gap in the serial stream before continuing
+	 // just waits for at least a 10s gap in the serial stream before continuing
 	 if ( DecodeError && IsLive )
 	 {
 	 	fd_set FdSet ;
@@ -636,7 +646,7 @@ int main(int argc, char *argv[])
       printf( "Decode error, attempting to re-sync\n") ;
 		while(!NextPacket)
 		{
-			TimeOut.tv_sec = 30 ;
+			TimeOut.tv_sec = 10 ;
 			TimeOut.tv_usec = 0 ;
 			// poll for data
 			Rc = select(Fd+1,&FdSet,NULL,NULL,&TimeOut);
@@ -649,7 +659,11 @@ int main(int argc, char *argv[])
 			else if ( Rc < 0)
 				break ;
 			else // data still pending, read and discard it
-				read(Fd,ScratchBuf,sizeof(ScratchBuf) ) ;
+			{
+				Rc = read(Fd,ScratchBuf,sizeof(ScratchBuf) ) ;
+				if ( Rc > 0 && BinLog )
+					fwrite(ScratchBuf,1,Rc,BinLog) ;
+			}
 		}		
 	 }
 #endif
