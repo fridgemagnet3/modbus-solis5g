@@ -118,7 +118,7 @@ static bool ProcessRequest(int Fd, uint8_t &Slave, uint8_t &Function,bool &Valid
   ResponseData.clear();
 
   if ( BinLog )
-    printf("BinLog Position: %08x\n", ftell(BinLog)) ;
+    printf("BinLog Position: %08lx\n", ftell(BinLog)) ;
     
   if (ReadMessageHeader(Fd,Slave,Function) )
   {
@@ -160,7 +160,7 @@ static bool ProcessRequest(int Fd, uint8_t &Slave, uint8_t &Function,bool &Valid
      
     if ( CsvLog )
     {
-      fprintf(CsvLog,"%s,%u",to_simple_string(TimeStamp).c_str(),Function);
+      fprintf(CsvLog,"%s,%u,%u",to_simple_string(TimeStamp).c_str(),Slave,Function);
       fflush(CsvLog);
     }
     printf("Slave: %u\n", Slave);
@@ -355,7 +355,7 @@ static bool ProcessResponse(int Fd,uint8_t Slave,uint8_t &Function,bool &Valid,s
       {
         uint16_t DataWord = (Response[i] << 8) + Response[i + 1];
         if ( Verbose )
-          printf("Addr: %04u => %04x\n", Address+i/sizeof(uint16_t), DataWord);
+          printf("Addr: %04lu => %04x\n", Address+i/sizeof(uint16_t), DataWord);
         ResponseData.push_back(DataWord);
       }
       printf("CRC: %x - ", Crc);
@@ -595,7 +595,7 @@ int main(int argc, char *argv[])
     else
     {
       std::cout << "Writing CSV to: " << LogName.str() << std::endl ;
-      fputs("TimeStamp,Function,Address\n",CsvLog);
+      fputs("TimeStamp,Slave,Function,Address\n",CsvLog);
     } 
   }
   
