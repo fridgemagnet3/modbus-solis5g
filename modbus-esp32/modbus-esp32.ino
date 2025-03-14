@@ -275,7 +275,6 @@ void setup()
     memset((void*)&BroadcastAddr, 0, sizeof(struct sockaddr_in));
     BroadcastAddr.sin_family = PF_INET;
     BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
-    // currently use different port from prototypes for test purposes
     BroadcastAddr.sin_port = htons(52005);
   }
   Serial.println("Setup done");
@@ -304,6 +303,7 @@ void loop()
       Serial.println("Sync with logger...");
       InitTime = millis() ;
       SolisState = SYNC_LOGGER ;
+      RequestCycle = 0u ;
       break ;
 
     case SYNC_LOGGER :
@@ -373,6 +373,16 @@ void loop()
 
     case MODBUS_REQUEST :
 
+      // Prior to making a request, check to see if any serial data has come in
+      // Normally there shouldn't be but when the logger performs it's daily reset
+      // (which can happen at any time) this can easily happen, in which case force a resync
+      if (Serial2.available() )
+      {
+        Serial.println("Detected serial traffic, forcing resync") ;
+        SolisState = SYNC_INIT ;
+        break ;
+      }
+
       Serial.println("Issuing request");
       if ( ModBusReadSolisRegisters( &ModbusSolisRegisters ) )
       {
@@ -399,7 +409,6 @@ void loop()
       {
         // if a transaction fails, don't attempt any more in this window because the timings are likely to
         // be screwed up, restart the state machine to sync with the wifi logger
-        RequestCycle = 0u ;
         SolisState = SYNC_INIT ;
         Serial.printf("Failed to retrieve modbus data from inverter\n");
         break ;
@@ -409,7 +418,6 @@ void loop()
       RequestCycle++ ;
       if ( RequestCycle == RequestsPerCycle )
       {
-        RequestCycle = 0u ;
         SolisState = SYNC_INIT ;
       }
       else
