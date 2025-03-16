@@ -46,6 +46,7 @@ static const char *CmdLookup[] = {
 
 static FILE *CsvLog ;
 static FILE *BinLog ;
+static bool RestrictToSlave = true;
 
 static int32_t Read(int Fd, void *Buf, size_t Count)
 {
@@ -71,34 +72,73 @@ static int32_t Read(int Fd, void *Buf, size_t Count)
   return TotalCount ;
 }
 
-// try and locate start of next message by looking for a sequence matching the slave id
-// and a valid function
+// Try and locate start of next message by looking for a sequence matching a slave id
+// and a valid function. This is needed due to the spurious characters that get injected
+// into the serial stream
 static bool ReadMessageHeader(int Fd, uint8_t &Slave, uint8_t &Function)
 {
   uint8_t Buf;
   uint32_t Skipped = 0;
   uint8_t Cmd ;
-  
+  bool SyncToHeader = false;
+
   while (Read(Fd, &Buf, sizeof(Buf)) == sizeof(Buf))
   {
-    // the logger supports up to 10 slaves, so restrict expected range
-    if (Buf >= 0x01 && Buf <= 0xA )
+    // The behaviour depends on whether we're only decoding for a single slave (as specified on the command line)
+    // or allowing for the full supported range.
+    // The former is liable to be more accurate in terms of matching every transaction since there the allowable
+    // range of recognized sequences will be more smaller.
+    // In the latter, in an effort to improve accuracy, the range of slaves AND recognized commands is 
+    // constrained to only those that the logger is expected to generate
+    if (RestrictToSlave)
     {
-      Slave = Buf ;
-      if (Read(Fd, &Buf, sizeof(Buf)) == sizeof(Buf))
+      if (Slave == Buf)
       {
-        // an error response from the inverter sets the top bit in the function code
-        Cmd = Buf & 0x7f ;
-        // logger only issues these command types
-        if ( Cmd == 0x3 || Cmd == 0x04 || Cmd == 0x06 || Cmd == 0x10 )
+        if (Read(Fd, &Buf, sizeof(Buf)) == sizeof(Buf))
         {
-          Function = Buf;
-          printf("Skipped %u bytes in stream looking for next header\n",Skipped);
-          return true;
+          // an error response from the inverter sets the top bit in the function code
+          if ((Buf & 0x7f) < CmdCount)
+          {
+            Function = Buf;
+            SyncToHeader = true;
+          }
+        }
+        else
+        {
+          printf("Failed to locate start of a request/response\n");
+          return false;
         }
       }
-      else
-        return false;
+    }
+    else
+    {
+      // the logger supports up to 10 slaves, so restrict expected range
+      if (Buf >= 0x01 && Buf <= 0xA)
+      {
+        Slave = Buf;
+        if (Read(Fd, &Buf, sizeof(Buf)) == sizeof(Buf))
+        {
+          // an error response from the inverter sets the top bit in the function code
+          Cmd = Buf & 0x7f;
+          // logger only issues these command types
+          if (Cmd == 0x3 || Cmd == 0x04 || Cmd == 0x06 || Cmd == 0x10)
+          {
+            Function = Buf;
+            SyncToHeader = true;
+          }
+        }
+        else
+        {
+          printf("Failed to locate start of a request/response\n");
+          return false;
+        }
+      }
+    } // restrict to a single slave
+
+    if (SyncToHeader)
+    {
+      printf("Skipped %u bytes in stream looking for next header\n",Skipped);
+      return true;
     }
     Skipped++;
   }
@@ -536,7 +576,7 @@ int main(int argc, char *argv[])
   // the slave is needed to allow us to try and sync up with the incoming data
 	if ( argc < 2 )
 	{
-		printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0]\n");
+		printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1]\n");
 		return -1 ;
 	}
 	
@@ -616,19 +656,27 @@ int main(int argc, char *argv[])
       std::cout << "Writing binary to: " << LogName.str() << std::endl ;
     } 
   }
-  
+
+  // attempt to decode for all valid slaves (rather than just that specified)
+  if (argc > 6 && !strtoul(argv[6], NULL, 0))
+  {
+    RestrictToSlave = false;
+    std::cout << "Not restricting decode to single slave" << std::endl;
+  }
+
   // start processing traffic
   while (!DecodeError)
   {
-      uint8_t MsgSlave ;
+     uint8_t MsgSlave = Slave ;
       
   	 DecodeError = !ProcessRequest(Fd, MsgSlave, Function, Valid, ResponseData) ;
+     // if decoding for multiple slave, we only expect a response back from the one specified on the command line
   	 if ( !DecodeError && (MsgSlave == Slave))
   	 {
-    	DecodeError = !ProcessResponse(Fd, Slave, Function,Valid,ResponseData,Verbose) ;
-    	if ( !DecodeError && Valid )
-	      DecodeResponseData(Function, ResponseData);
-	 }
+    	  DecodeError = !ProcessResponse(Fd, Slave, Function,Valid,ResponseData,Verbose) ;
+    	  if ( !DecodeError && Valid )
+	        DecodeResponseData(Function, ResponseData);
+  	 }
 #ifndef WIN32
 	 // if we get a decode error, try and resync the stream. In effect this
 	 // just waits for at least a 10s gap in the serial stream before continuing
