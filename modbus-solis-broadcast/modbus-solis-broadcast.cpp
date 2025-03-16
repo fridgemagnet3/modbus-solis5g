@@ -186,7 +186,9 @@ static bool SyncWithLogger(const char *Device)
     Rc = select(Fd + 1, &FdSet, NULL, NULL, &TimeOut);
     if (Rc == 0)
     {
-      printf("Timed out waiting for traffic, retrying...\n");
+      if (Verbose)
+        printf("Timed out waiting for traffic - going ahead anyway...\n");
+      break;
     }
     else if (Rc < 0)
     {
@@ -204,7 +206,7 @@ static bool SyncWithLogger(const char *Device)
       {
         ssize_t Bytes = read(Fd, ScratchBuf, sizeof(ScratchBuf)) ;
         if ( Verbose )
-          printf("Got data %u bytes within %u seconds, re-syncing just to be sure...\n", Bytes, SyncTimeout-TimeOut.tv_sec);
+          printf("Got data %zu bytes within %lu seconds, re-syncing just to be sure...\n", Bytes, SyncTimeout-TimeOut.tv_sec);
       }
       else
         BusIdle = false;
@@ -455,11 +457,45 @@ int main(int argc, char *argv[])
           printf("Failed to generate JSON data\n");
       }
       else
+      {
         printf("Failed to retrieve modbus data from inverter\n");
-
+        break ;
+      }
       // don't sleep on the last cycle
-      if ( i < (RequestsPerCycle-1)) 
+      if (i < (RequestsPerCycle - 1))
+      {
+        // open serial port to monitor for traffic while we sleep
+        int Fd = open(argv[1], O_RDONLY | O_NONBLOCK);
+        uint8_t ScratchBuf[256];
+        bool ContinuePoll = false;
+
+        if (Fd < 0)
+        {
+          perror("open serial");
+          break;
+        }
+
         sleep(PollDelay);
+
+        // poll for any data arrived in the meantime, under normal circumstances, it shoudn't
+        // EXCEPT when the logger performs it's daily reset...
+        auto Rc = read(Fd, ScratchBuf, sizeof(ScratchBuf));
+        if (Rc < 0)
+        {
+          // no data read, verify it's because there's none there and if so, continue with our next request
+          if (errno != EAGAIN)
+            perror("read");
+          else
+            ContinuePoll = true;
+        }
+        else if (Verbose)
+        {
+          printf("Detected serial data, forcing re-sync\n") ;
+        }
+        close(Fd);
+        if ( !ContinuePoll )
+          break;
+      }
     }
   }
 
