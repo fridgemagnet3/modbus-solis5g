@@ -1,3 +1,7 @@
+This branch is all about investigating and trying to fix ([#2][i2]). See the ticket for current status.
+
+[i2]: https://github.com/fridgemagnet3/modbus-solis5g/issues/2
+
 # Modbus tools for Solis 5g solar inverters
 
 This is a collection of some applications, tools and utilities I've put together for firstly investigating then retrieving information from a Solis 5G solar inverter via Modbus.
