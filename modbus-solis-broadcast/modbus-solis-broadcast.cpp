@@ -232,9 +232,9 @@ static bool SyncWithLogger(const char *Device)
       break;
     }
 
-    // wait for 10s of inactivity
-    TimeOut.tv_sec = 10;
-    TimeOut.tv_usec = 0;
+    // wait for ~12s of inactivity
+    TimeOut.tv_sec = 12;
+    TimeOut.tv_usec = 500*1000;
     Rc = select(Fd + 1, &FdSet, NULL, NULL, &TimeOut);
     if (Rc == 0)
       BusIdle = true;  // timed out, we should now have a good 50s time on the bus
@@ -361,7 +361,7 @@ int main(int argc, char *argv[])
   uint8_t SlaveId = 1;
   // should have 50s worth of free time, which allows for 3 requests at 20s intervals
   const uint32_t RequestsPerCycle = 3;
-  const uint32_t PollDelay = 20;
+  const uint32_t PollDelay = 18;
   char *jSon;
   SOCKET sFd ;
   int EnBroadcast = 1 ;
