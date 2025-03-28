@@ -2,6 +2,15 @@ This branch is all about investigating and trying to fix ([#2][i2]). See the tic
 
 [i2]: https://github.com/fridgemagnet3/modbus-solis5g/issues/2
 
+Investigation setup - ESP32 connected in tandem with Raspberry Pi, via USB/422 adaptor (running [modbus-sniffer](#modbus-sniffer)), with ESP debug serial routed to the Pi.
+
+![20250328_143823](https://github.com/user-attachments/assets/a6f89e93-48c6-4d6e-8507-6ab6d6eaf5ec)
+
+Pi captures: LH console showing sniffer output, RH console showing ESP debug
+
+![20250328_144039](https://github.com/user-attachments/assets/709554b2-68b0-4052-9224-c5b7178bb319)
+
+
 # Modbus tools for Solis 5g solar inverters
 
 This is a collection of some applications, tools and utilities I've put together for firstly investigating then retrieving information from a Solis 5G solar inverter via Modbus.
