@@ -9,6 +9,8 @@
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 
+// Module: ESP32-WROOM-DA Module
+
 // info we're interested in from the inverter - matches JSON names
 // used by the Solis API
 typedef struct {
@@ -283,10 +285,11 @@ void setup()
 void loop() 
 {
   uint8_t ScratchBuf[256] ;
-  static unsigned long InitTime, SyncTime ;
+  static unsigned long InitTime, SyncTime, ConsumeLogTime ;
   const unsigned long MinSyncTime = 4000u ;
   const unsigned long BusIdleTime = 12500u ; 
   const unsigned long LoggerTimeout = 90*1000u ;  // 1.5min
+  const unsigned long ConsumeLogThreshold = 7000u ;
   // should have 50s worth of free time, which allows for 3 requests at 20s intervals
   const uint32_t RequestsPerCycle = 3;
   const uint32_t PollDelay = 18000;
@@ -295,6 +298,7 @@ void loop()
   char *jSon;
   static uint32_t RequestCycle = 0 ;
   static uint32_t LoggerFail = 0u ;
+  unsigned long Delta ;
 
   switch (SolisState)
   {
@@ -314,6 +318,7 @@ void loop()
       {
         SolisState = CONSUME_LOGGER ;
         Serial.println("Consume logger data...");
+        ConsumeLogTime = millis() ;
       }
       else
       {
@@ -351,7 +356,14 @@ void loop()
         SolisState = WAIT_IDLE ;
         // save time at which data stops arriving
         SyncTime = millis() ;
-        Serial.printf("Wait for data elapsed %d ms\n", millis()-InitTime);
+        Serial.printf("Wait for data elapsed %d ms\n", SyncTime - InitTime);
+        Delta = millis() - ConsumeLogTime ;
+        Serial.printf("Consume log time %d ms\n", Delta);
+        if ( Delta > ConsumeLogThreshold )
+        {
+          Serial.println("Detected more traffic than usual, limiting polls this cycle to 1") ;
+          RequestCycle = RequestsPerCycle - 1 ;
+        }
         Serial.println("Wait for bus idle...");
       }
       break ;
