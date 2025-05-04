@@ -9,6 +9,8 @@
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 
+// Module: ESP32-WROOM-DA Module
+
 // info we're interested in from the inverter - matches JSON names
 // used by the Solis API
 typedef struct {
@@ -105,7 +107,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
 }
 
 // generate JSON message aligned to Solis API from the register data
-static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
+static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uint32_t LoggerFail)
 {
   cJSON *SolarJson = cJSON_CreateObject();
   cJSON *Node;
@@ -190,6 +192,12 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   Node = cJSON_CreateBool(true);
   if (Node)
     cJSON_AddItemToObject(SolarJson, "success", Node);
+
+  // this is non-standard but provides an indication of if (and how many times)
+  // the logger has failed
+  Node = cJSON_CreateNumber(LoggerFail);
+  if (Node)
+    cJSON_AddItemToObject(SolarJson, "loggerFail", Node);
 
   // generate return string
   Ret = cJSON_Print(SolarJson);
@@ -277,16 +285,20 @@ void setup()
 void loop() 
 {
   uint8_t ScratchBuf[256] ;
-  static unsigned long InitTime, SyncTime ;
+  static unsigned long InitTime, SyncTime, ConsumeLogTime ;
   const unsigned long MinSyncTime = 4000u ;
-  const unsigned long BusIdleTime = 8000u ; 
+  const unsigned long BusIdleTime = 12500u ; 
+  const unsigned long LoggerTimeout = 90*1000u ;  // 1.5min
+  const unsigned long ConsumeLogThreshold = 7000u ;
   // should have 50s worth of free time, which allows for 3 requests at 20s intervals
   const uint32_t RequestsPerCycle = 3;
-  const uint32_t PollDelay = 20000;
+  const uint32_t PollDelay = 18000;
   size_t BytesRead ;
   ModbusSolisRegister_t ModbusSolisRegisters;
   char *jSon;
   static uint32_t RequestCycle = 0 ;
+  static uint32_t LoggerFail = 0u ;
+  unsigned long Delta ;
 
   switch (SolisState)
   {
@@ -295,6 +307,7 @@ void loop()
       Serial.println("Sync with logger...");
       InitTime = millis() ;
       SolisState = SYNC_LOGGER ;
+      RequestCycle = 0u ;
       break ;
 
     case SYNC_LOGGER :
@@ -305,9 +318,20 @@ void loop()
       {
         SolisState = CONSUME_LOGGER ;
         Serial.println("Consume logger data...");
+        ConsumeLogTime = millis() ;
       }
       else
+      {
         delay(500) ;
+        if ( (millis() - InitTime) > LoggerTimeout )
+        {
+          Serial.println("Timed out waiting for logger activity\n");
+          LoggerFail++ ;
+          // do one cycle then come back here
+          SolisState = MODBUS_REQUEST ;
+          RequestCycle = RequestsPerCycle - 1 ;
+        }
+      }
       break ;
       
     case CONSUME_LOGGER :
@@ -332,7 +356,14 @@ void loop()
         SolisState = WAIT_IDLE ;
         // save time at which data stops arriving
         SyncTime = millis() ;
-        Serial.printf("Wait for data elapsed %d ms\n", millis()-InitTime);
+        Serial.printf("Wait for data elapsed %d ms\n", SyncTime - InitTime);
+        Delta = millis() - ConsumeLogTime ;
+        Serial.printf("Consume log time %d ms\n", Delta);
+        if ( Delta > ConsumeLogThreshold )
+        {
+          Serial.println("Detected more traffic than usual, limiting polls this cycle to 1") ;
+          RequestCycle = RequestsPerCycle - 1 ;
+        }
         Serial.println("Wait for bus idle...");
       }
       break ;
@@ -354,6 +385,16 @@ void loop()
 
     case MODBUS_REQUEST :
 
+      // Prior to making a request, check to see if any serial data has come in
+      // Normally there shouldn't be but when the logger performs it's daily reset
+      // (which can happen at any time) this can easily happen, in which case force a resync
+      if (Serial2.available() )
+      {
+        Serial.println("Detected serial traffic, forcing resync") ;
+        SolisState = SYNC_INIT ;
+        break ;
+      }
+
       Serial.println("Issuing request");
       if ( ModBusReadSolisRegisters( &ModbusSolisRegisters ) )
       {
@@ -364,7 +405,7 @@ void loop()
           Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
 
           // generate the JSON data, aligned to the Solis API
-          jSon = GenerateJson(&ModbusSolisRegisters);
+          jSon = GenerateJson(&ModbusSolisRegisters,LoggerFail);
           if (jSon)
           {
             Serial.printf("JSON data: %s:\n", jSon);
@@ -380,7 +421,6 @@ void loop()
       {
         // if a transaction fails, don't attempt any more in this window because the timings are likely to
         // be screwed up, restart the state machine to sync with the wifi logger
-        RequestCycle = 0u ;
         SolisState = SYNC_INIT ;
         Serial.printf("Failed to retrieve modbus data from inverter\n");
         break ;
@@ -390,7 +430,6 @@ void loop()
       RequestCycle++ ;
       if ( RequestCycle == RequestsPerCycle )
       {
-        RequestCycle = 0u ;
         SolisState = SYNC_INIT ;
       }
       else
