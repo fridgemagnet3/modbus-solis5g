@@ -28,9 +28,13 @@ The project was constructed in two parts - the first, the "proof of concept" use
 
 ![20241103_180441](https://github.com/user-attachments/assets/29c87abe-2c4b-43d1-8a9e-ae0e4fc55c1a)
 
-The second part replaces this with an ESP32 microcontroller, powered of the 5V supply from the inverter.
+The second part replaced this with an ESP32 microcontroller, powered of the 5V supply from the inverter.
 
 ![20250301_170933](https://github.com/user-attachments/assets/4aea6824-fb2a-4ca0-a5db-8a98bb198143)
+
+Thanks to [@z85](https://github.com/zx85) for the 3D printed case.
+
+![PXL_20250505_122722543 MACRO_FOCUS](https://github.com/user-attachments/assets/8b201774-31a7-448d-b5b4-102050755da1)
 
 ### Spurious characters
 I believe that the invertor (and possibly the Wifi logger as well) is generating spurious characters on the serial line in or around the time it responds to a request. This can be seen in the [sample log file](data/2024-11-08_12-07-44.log) where it reports things like _Skipped 2 bytes in stream looking for next header_. In the case of the RS485/USB adaptor used during the first part of the project, this seems to materialise as up to 3 NULL bytes which I believe are actually _serial break_ characters (or framing errors). Where the ESP-32 module is concerned, I see just random characters. In the process of investigating this, I've tried adding in termination resistors (to the connectors at both end of the cable since I don't believe either the interter or logger has them) and bias reistors (even though I don't believe the MAX devices need them). Neither of which has made any difference, which based on the behaviour I was seeing, frankly didn't think it would. 
@@ -38,6 +42,15 @@ I believe that the invertor (and possibly the Wifi logger as well) is generating
 As an extra observation, as part of my simulated test setup, I've had the ESP-32 module connected directly to the RS485/USB module. In this configuration, the USB module was still detecting framing errors at around the point the ESP turned off it's transmitters. However the data received by the ESP was rock solid.
 
 As a result, I've had to implement software workarounds, in effect to discard any incoming bytes up until the expected start of response sequence is detected. In the case of the Linux applications, this is in the form of a patch against the current. 3.1.11 release of the libmodbus library, this can be found in the [libmodbus folder](libmodbus/). For the ESP-32 module, I've created a fork of the [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster) library.
+
+## Daily reset
+[i2]: https://github.com/fridgemagnet3/modbus-solis5g/issues/2
+Every day, the logger appears to perform a reset, my working (unproven) theory is that this is to check for a firmware update from Solis. Initially, this will happen exactly 24 hours from the initial application of power however over time, the point this happens will shift, possibly to even out load on Solis's servers. In the [initial logs](data/) and spreadsheets I captured last year, this even I highlighted as "anomaly" or "anomalous behaviour", however a more detailed breakdown of exactly what it does 
+can be found in the [logger-reset spreadsheet](data/logger-reset.ods). In a nutshell though, the typical behaviour is that the logger aborts it's current cycle, then ~12 seconds later begins polling all of the slaves it supports. Whilst most of us only have the one inverter, the documentation states it can address up to 10 and this is bourne out by the behaviour. 
+
+The logger is particularly senstive to transactions occurring around the point it comes out of reset (ie. possibly being performed by my applications), potentially leading to the point where it fails to recognize the inverter and hence ceases all communication, requiring a manual reset to recover. This is essentially what ([#2][i2]) was about, trying to ensure the software does not upset the logger such that it gets into this state. I believe this is now addressed however it should be noted that during this investigation, the logger exhibited a number of subtly different behaviours around the reset point so it remains possible it could still get into this state. However if it does, this should be a relatively rare event.
+
+The additional point to note is that my focus whilst looking at ([#2][i2]) was in addressing the ESP version of the software and whilst some of the fixes have been backported to the original Linux [modbus-solis-broadcast prototype](#modbus-solis-broadcast) version, not all have and only limited testing has subsequently been performed. This needs to be kept in mind if you're planning on using this solution long term. See the ticket for more details.
 
 ## ESP-32 Module
 For the finished product, I replaced the Raspberry Pi with an ESP32 WROOM-32 module. These are inexpensive, nifty little microcontrollers which have a bunch of I/O (including serial) plus built in Wifi. 
@@ -75,7 +88,7 @@ In this picture, I'm still powering it from the micro-USB connector, those two u
 ## Software
 There are 4 distinct applications currently here. The first 3 are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however these only offer limited functionality, in particular anything that does direct serial port receives & transmits won't work plus you'll need to get hold off and/or build the additional libraries. In short, these were really more for me to do some initial offline debug & test. The fourth application is the [Arduino sketch for the ESP32.](#modbus-esp32)
 
-The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the applications which interface to the serial ports directly configure any of the serial settings, you'll need to do that first by hand which is normally just a case of doing something like:
+The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the Linux applications which interface to the serial ports directly configure any of the serial settings, you'll need to do that first by hand which is normally just a case of doing something like:
 
 `stty -F /dev/ttyUSB0 9600 raw -echo`
 
@@ -84,7 +97,7 @@ Dependencies: boost-crc, boost-datetime (sudo apt-get install libboost-dev libbo
 
 As the name suggests, this is an app designed to sniff traffic on the serial link, essentially to capture and profile the transactions performed by the wifi dongle. From this I was able to asertain that the wifi dongle, for the most part only ever performs relatively short transactions, every minute and retrieves the bulk of the data every 5 minutes. This also let me determine which of the, several Solis Modbus documents that are out there correspond to the register set of the inverter, that being [this document](https://www.scss.tcd.ie/Brian.Coghlan/Elios4you/RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf). Based on this, the tool will also decode a (very limited) subset of the registers, in turn when then allowed me to figure out how to decode the [registers holding active generation data](registers.txt)
 
-The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data), included an annotated spreadsheet, generated from the csv. This shows the typical wifi dongle behaviour as a result of leaving the sniffer running for a couple of days, plus some interesting oddities which seem to happen once a day (search for the word _anomaly_) - see also issue #2
+The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data), included an annotated spreadsheet, generated from the csv. This shows the typical wifi dongle behaviour as a result of leaving the sniffer running for a couple of days.
 
 Example usage:
 
