@@ -138,5 +138,10 @@ Dependencies: [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster)
 
 This is the Arduino sketch for the ESP-32 port of [modbus-solis-broadcast](#modbus-solis-broadcast). As a minimum, you will need to edit the [config.h](modbus-esp32/config.h)  file to define your Wifi SSID and password. Additionally, if you are using different GPIO pins to those shown on the schematic, you'll need to edit those settings as well.
 
+## MQTT and Home Assistant Integration
 
+The script [mqtt/solar_mqtt_publisher.py](mqtt/solar_mqtt_publisher.py) listens to the solar UDP broadcast packets and publishes a subset of them to an MQTT broker. It also publishes [home assistant MQTT auto-discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) topics for each sensor, meaning they should automatically show up in HA.
 
+Note that at the time of writing, the collection of Modbus broadcast applications **do not** obtain all of the necessary data from the inverter to fully populate the Energy dashboard in HA, in particular it requires the kWh usage metrics from panels, grid and battery. In my setup, I handle this by running my [solis_broadcast.py](https://github.com/fridgemagnet3/solar-display-micropython/tree/main/solis-broadcast) script in tandem (I mentioned this in the opening para of this README). This obtains all of the metrics from the Solis cloud, a subset (which includes all those necessary for the HA energy dashboard) are then also put out as UDP broadcast packets. Aside from providing this additionally information, it also serves as a backup source in the event my ESP app is offline. There's logic in the MQTT script to handle the fact that two sources of solar data may be present on the network, ensuring only the latest is used and factoring in that only one of them has this additional data used by HA.
+
+There's no obvious reason why the apps here adapted to obtain this additional information via Modbus (albeit at the risk of upsetting the timings). However those additional metrics don't really fall into the real time category of those I have implemented, at present I've no plans to open the software up again just to add them in.
