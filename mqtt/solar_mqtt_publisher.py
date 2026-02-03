@@ -135,6 +135,16 @@ ha_grid_sell_discover = '''
 }
 '''
 
+ha_logger_fails_discover = '''
+{
+        "name": "Solis data logger failure count",
+        "state_topic": "solar/solisLoggerFailureCount",
+        "platform": "sensor",
+        "state_class": "total_increasing",
+        "expire_after": 600
+}
+'''
+
 def on_mqtt_connect(client, userdata, flags, rc):
     print("broker connect: %d" %(rc))
     if rc!=0:
@@ -168,6 +178,7 @@ mqttc.publish("homeassistant/sensor/solar/batteryTodayChargeEnergy/config",ha_ba
 mqttc.publish("homeassistant/sensor/solar/batteryTodayDischargeEnergy/config",ha_battery_discharge_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/gridPurchasedTodayEnergy/config",ha_grid_purchase_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/gridSellTodayEnergy/config",ha_grid_sell_discover,retain=True)
+mqttc.publish("homeassistant/sensor/solar/solisLoggerFailureCount/config",ha_logger_fails_discover,retain=True)
 
 while True:
     # wait for and fetch next solar UDP packet
@@ -192,6 +203,11 @@ while True:
         if 'gridSellTodayEnergy' in json_solar_data['data']:
             gridSellTodayEnergy = str(json_solar_data['data']['gridSellTodayEnergy'])
             mqttc.publish("solar/gridSellTodayEnergy",gridSellTodayEnergy)
+        # this is ONLY in the data published locally and provides a counter
+        # of how many times the modbus app detects that the logger has stopped issuing requests
+        if 'loggerFail' in json_solar_data:
+            loggerFail = str(json_solar_data['loggerFail'])
+            mqttc.publish("solar/solisLoggerFailureCount",loggerFail)
 
         # for the 'live' data, make sure we're using the latest
         dataTimestamp = int(json_solar_data['data']['dataTimestamp']) / 1000
