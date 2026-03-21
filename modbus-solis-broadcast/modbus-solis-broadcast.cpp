@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <fcntl.h>
+#include <boost/thread.hpp>
 #ifndef WIN32
 #include <unistd.h>
 #include <sys/select.h>
@@ -8,12 +9,11 @@
 #include <termios.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-typedef int SOCKET;
 #define closesocket close
 #else
 #include <io.h>
 #pragma warning(disable : 4996)
-#define sleep(x) Sleep(x*1000)
+typedef int socklen_t;
 #endif
 #include <errno.h>
 #include <modbus/modbus.h>
@@ -22,6 +22,11 @@ typedef int SOCKET;
 #include <iostream>
 #include <sstream>
 #include <cjson/cJSON.h>
+#include <vector>
+#include "modbus_tcp_adu.h"
+
+// maxm. no of TCP clients we can handle
+#define MAX_MODBUS_TCP_CLIENTS 10
 
 //
 // Collect power generation data from Solis inverter via modbus, then
@@ -44,14 +49,26 @@ typedef struct {
 
 static bool Verbose = false;
 
+// array of connected modbus clients
+static SOCKET ModbusTCPClients[MAX_MODBUS_TCP_CLIENTS];
+// pending client requests
+static std::vector<ModbusTcpAdu*> ModbusClientRequests;
+// mutex used to lock access to the ModbusClientRequests vector
+static boost::mutex ModbusClientMutex;
+
+static bool ServiceModbusTcpClient(SOCKET Sfd);
+
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, uint8_t Slave = 1)
 {
   using namespace boost::posix_time;
-  modbus_t *Ctx = modbus_new_rtu(Device,9600,'N',8,1) ;
+  modbus_t *Ctx = ModbusTcpAdu::CreateModbusRtuSession(Device,Slave);
   uint16_t RegBank[16];
   int Rc = 0 ;
   bool Ret = false;
+
+  if (!Ctx)
+    return false;
 
   if (Verbose)
   {
@@ -61,30 +78,6 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   }
 
   memset(ModbusSolisRegisters,0,sizeof(ModbusSolisRegister_t)) ;
-  
-  if (!Ctx)
-  {
-    printf("modbus_new_rtu: %s\n", modbus_strerror(errno));
-    return false;
-  }
-  if (modbus_connect(Ctx) == -1)
-  {
-    printf("modbus_connect: %s\n", modbus_strerror(errno));
-    modbus_free(Ctx);
-    return false;
-  }
-  if (modbus_set_slave(Ctx, Slave) == -1)
-  {
-    printf("modbus_set_slave: %s\n", modbus_strerror(errno));
-    modbus_close(Ctx);
-    modbus_free(Ctx);
-    return false;
-  }
-#ifdef WIN32
-  // for testing
-  modbus_set_response_timeout(Ctx, 15, 0);
-  modbus_set_debug(Ctx, 1);
-#endif
 
   // most of what we need is in a single grouping
   // see RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf
@@ -355,6 +348,261 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   return Ret;
 }
 
+// create TCP server for operating as a modbus slave/forwarder
+static SOCKET CreateModbusTCPServer(void)
+{
+  struct sockaddr_in ServerAddr; 
+  SOCKET Sfd;
+  socklen_t SLen;
+
+  memset(&ServerAddr, 0, sizeof(ServerAddr));
+
+  ServerAddr.sin_family = AF_INET;
+  ServerAddr.sin_port = htons(502);  // default modbus TCP port
+  ServerAddr.sin_addr.s_addr = INADDR_ANY;
+
+  Sfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (Sfd < 0)
+  {
+    perror("socket: ");
+    return Sfd;
+  }
+
+  SLen = sizeof(ServerAddr);
+  if (bind(Sfd, (struct sockaddr*)&ServerAddr, SLen) < 0)
+  {
+    perror("bind: ");
+    closesocket(Sfd);
+    return -1;
+  }
+  if (listen(Sfd, MAX_MODBUS_TCP_CLIENTS) < 0)
+  {
+    perror("listen: ");
+    closesocket(Sfd);
+    return -1;
+  }
+
+  return Sfd;
+}
+
+// thread used to service modbus TCP clients
+static void ModbusTcpServiceThread(SOCKET ServerSfd)
+{
+  fd_set FdSet;
+  int MaxSfd = ServerSfd;
+
+  // got no server, bail
+  if (ServerSfd < 0)
+    return;
+
+  while (1)
+  {
+    // add server to the select list
+    FD_ZERO(&FdSet);
+    FD_SET(ServerSfd, &FdSet);
+
+    // add connected clients that aren't pending servicing to the polling list
+    for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
+    {
+      if (ModbusTCPClients[i] )
+      {
+        FD_SET(ModbusTCPClients[i], &FdSet);
+        if (ModbusTCPClients[i] > MaxSfd)
+          MaxSfd = ModbusTCPClients[i];
+      }
+    }
+
+    // see if any require our attention
+    int Rc = select(MaxSfd + 1, &FdSet, nullptr, nullptr, nullptr);
+    if (Rc > 0)
+    {
+      // new client connection?
+      if (FD_ISSET(ServerSfd, &FdSet))
+      {
+        // accept the connection
+        SOCKET Sfd = accept(ServerSfd, nullptr, 0);
+
+        if (Verbose)
+          printf("New client connection\n");
+
+        if (Sfd < 0)
+          perror("accept:");
+        else
+        {
+          // find a free slot in the list of client connections
+          // and add it
+          bool AcceptClient = false;
+
+          for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
+          {
+            if (!ModbusTCPClients[i] )
+            {
+              ModbusTCPClients[i] = Sfd;
+              AcceptClient = true;
+              break;
+            }
+          }
+          if (!AcceptClient)
+          {
+            printf("Max no of client connections exceeded\n");
+            closesocket(Sfd);
+          }
+          else
+          {
+            const int Disable = 1;
+            setsockopt(Sfd, IPPROTO_TCP, TCP_NODELAY, (const char*)&Disable, sizeof(int));
+          }
+        }
+      }
+
+      // any clients require attention?
+      for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
+      {
+        if (ModbusTCPClients[i] >= 0)
+        {
+          // add each pending client to the pending list
+          if (FD_ISSET(ModbusTCPClients[i], &FdSet))
+          {
+            if (!ServiceModbusTcpClient(ModbusTCPClients[i]))
+            {
+              closesocket(ModbusTCPClients[i]);
+              ModbusTCPClients[i] = 0;
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+      perror("select: ");
+      break;
+    }
+  }
+}
+
+// service next pending Modbus TCP client request
+static bool ServiceModbusTcpClient(SOCKET Sfd)
+{
+  uint8_t Frame[1400];
+  bool ValidClient = false;
+
+  // read the request
+  auto Bytes = recv(Sfd, (char*)Frame, sizeof(Frame), 0);
+  if (Bytes < 0)
+    perror("ServiceModbusTcpClient: recv: ");
+  else if (!Bytes)
+  {
+    if (Verbose)
+      printf("Client has closed connection\n");
+  }
+  else
+    ValidClient = true;
+
+  // nothing to do 
+  if (!ValidClient)
+    return false;
+
+  // try and construct an ADU object from this frame
+  ModbusTcpAdu *Adu = new ModbusTcpAdu(Sfd, Frame, Bytes);
+  if (Adu->IsValidFrame())
+  {
+    bool AddNewRequest = true;
+    bool Transacted = false;
+
+    // lockout updates to the request list for the duration
+    boost::lock_guard<boost::mutex> lock(ModbusClientMutex);
+
+    // check to see if we've already got an identical request pending
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      if ((*It)->IsIdenticalAdu(*Adu))
+      {
+        auto ExistingAdu = (*It);
+
+        // we have, has it been processed?
+        if (ExistingAdu->IsProcessed())
+        {
+          // yes, send it to the client using the transaction id of this one
+          if (!ExistingAdu->TcpSendResponse(Sfd, Adu->GetTransactionId()))
+            ValidClient = false;
+          Transacted = true;
+          // write transactions only executed once
+          if (ExistingAdu->IsWriteTransaction())
+          {
+            delete ExistingAdu;
+            // delete from the list of pending requests
+            ModbusClientRequests.erase(It);
+          }
+        }
+        else if (Adu->IsWriteTransaction())  // update identical write transaction with new data
+          ExistingAdu->UpdateRegisterData(Adu->GetRegisterData());
+
+        // no need to add this one to the list
+        AddNewRequest = false;
+        break;
+      }
+    }
+
+    // if request didn't get answered, send a "server busy" response back
+    if (!Transacted)
+    {
+      if (!Adu->TcpSendDeviceBusy())
+        ValidClient = false;
+    }
+
+    // need to add this to the list of pending requests?
+    if (AddNewRequest && ValidClient)
+      ModbusClientRequests.push_back(Adu);
+    else
+      delete Adu;  // request already exists in queue so discard
+  }
+  else // failed to construct a frame, just return
+    delete Adu;
+
+  return ValidClient;
+}
+
+bool ProcessPendingModbusTcpRequests(const char *Device)
+{
+  ModbusTcpAdu *PendingRequest = nullptr ;
+
+  {
+    // lockout access to the client list whilst we find a pending request
+    boost::lock_guard<boost::mutex> lock(ModbusClientMutex);
+
+    // check to see if we've already got an identical request pending
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      if (!(*It)->IsProcessed())
+      {
+        PendingRequest = *It;
+        break;
+      }
+    }
+  }
+
+  // nothing pending
+  if (!PendingRequest)
+    return false;
+
+  // if the request failed, delete it from the list
+  if (!PendingRequest->PerformRTUTransaction(Device))
+  {
+    boost::lock_guard<boost::mutex> lock(ModbusClientMutex);
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      if ((*It) == PendingRequest)
+      {
+        ModbusClientRequests.erase(It);
+        break;
+      }
+    }
+    delete PendingRequest;
+  }
+
+  return true;
+}
+
 int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
@@ -363,7 +611,7 @@ int main(int argc, char *argv[])
   const uint32_t RequestsPerCycle = 3;
   const uint32_t PollDelay = 18;
   char *jSon;
-  SOCKET sFd ;
+  SOCKET sFd, ModbusTcpServerFd ;
   int EnBroadcast = 1 ;
   struct sockaddr_in BroadcastAddr ;
 #ifdef WIN32
@@ -419,16 +667,28 @@ int main(int argc, char *argv[])
   BroadcastAddr.sin_family = AF_INET;
   BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
   
+  // create Modbus TCP server for handling remote requests
+  ModbusTcpServerFd = CreateModbusTCPServer() ;
+  if (ModbusTcpServerFd >= 0)
+  {
+    // start thread responsible for servicing modbus TCP clients
+    boost::thread ServiceThread(ModbusTcpServiceThread,ModbusTcpServerFd);
+  }
+
   printf( "Starting poll\n") ;
 #ifndef WIN32
   // sync to the next access performed by the data logger
   while (SyncWithLogger(argv[1]))
+#else
+  while (1)
 #endif
   {
     // should have 50s worth of free time, which allows for 3 requests at 20s intervals
     for (uint32_t i = 0; i < RequestsPerCycle; i++)
     {
-      if (ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, SlaveId))
+      // if there is at least one client requiring attention, use this cycle to
+      // service it rather than our usual poll
+      if (!ProcessPendingModbusTcpRequests(argv[1]) && ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, SlaveId))
       {
         if (Verbose)
         {
@@ -449,8 +709,8 @@ int main(int argc, char *argv[])
 
           // send out to clients
           BroadcastAddr.sin_port = htons(52005);
-          if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
-            perror("sendto");
+          //if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
+          //  perror("sendto");
           free(jSon);
         }
         else
@@ -459,11 +719,13 @@ int main(int argc, char *argv[])
       else
       {
         printf("Failed to retrieve modbus data from inverter\n");
-        break ;
       }
+
+
       // don't sleep on the last cycle
       if (i < (RequestsPerCycle - 1))
       {
+#ifndef WIN32
         // open serial port to monitor for traffic while we sleep
         int Fd = open(argv[1], O_RDONLY | O_NONBLOCK);
         uint8_t ScratchBuf[256];
@@ -495,6 +757,9 @@ int main(int argc, char *argv[])
         close(Fd);
         if ( !ContinuePoll )
           break;
+#else
+        Sleep(PollDelay*1000);
+#endif
       }
     }
   }
