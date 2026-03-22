@@ -9,6 +9,7 @@
 #include <termios.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #define closesocket close
 #else
 #include <io.h>
@@ -23,6 +24,7 @@ typedef int socklen_t;
 #include <sstream>
 #include <cjson/cJSON.h>
 #include <vector>
+#include <algorithm>
 #include "modbus_tcp_adu.h"
 
 // maxm. no of TCP clients we can handle
@@ -32,6 +34,9 @@ typedef int socklen_t;
 // Collect power generation data from Solis inverter via modbus, then
 // encapsulate it as a limited JSON data packet using the same convention as
 // the Solis cloud API, compress and UDP broadcast it out to interested clients
+//
+// Also allow for external clients to perform arbitrary read/write register
+// requests by acting as a modbus/TCP server
 //
 // This is designed to operate in tandem with the existing Wifi logger
 //
@@ -401,7 +406,7 @@ static void ModbusTcpServiceThread(SOCKET ServerSfd)
     FD_ZERO(&FdSet);
     FD_SET(ServerSfd, &FdSet);
 
-    // add connected clients that aren't pending servicing to the polling list
+    // add connected clients to the polling list
     for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
     {
       if (ModbusTCPClients[i] )
@@ -449,6 +454,7 @@ static void ModbusTcpServiceThread(SOCKET ServerSfd)
           }
           else
           {
+            // disable Naggle algorithm so the response packets get sent out immediately
             const int Disable = 1;
             setsockopt(Sfd, IPPROTO_TCP, TCP_NODELAY, (const char*)&Disable, sizeof(int));
           }
@@ -460,9 +466,9 @@ static void ModbusTcpServiceThread(SOCKET ServerSfd)
       {
         if (ModbusTCPClients[i] >= 0)
         {
-          // add each pending client to the pending list
           if (FD_ISSET(ModbusTCPClients[i], &FdSet))
           {
+            // service the request
             if (!ServiceModbusTcpClient(ModbusTCPClients[i]))
             {
               closesocket(ModbusTCPClients[i]);
@@ -503,6 +509,11 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
     return false;
 
   // try and construct an ADU object from this frame
+  // since TCP is stream oriented, in theory 2 things could go wrong here....
+  // - we could read insufficient data for a complete frame. This is unlikely given how small they are
+  // - we could read > 1 frame, this shouldn't happen because the client should wait for us to respond to 
+  //   the last request before sending another. 
+  // either way, if those do crop up, we just ignore them & let the client retry
   ModbusTcpAdu *Adu = new ModbusTcpAdu(Sfd, Frame, Bytes);
   if (Adu->IsValidFrame())
   {
@@ -510,7 +521,7 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
     bool Transacted = false;
 
     // lockout updates to the request list for the duration
-    boost::lock_guard<boost::mutex> lock(ModbusClientMutex);
+    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
 
     // check to see if we've already got an identical request pending
     for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
@@ -519,6 +530,11 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
       {
         auto ExistingAdu = (*It);
 
+        // update the existing transaction write data with new
+        // - if this differs from the existing, will adjust the processed flag accordingly
+        if (Adu->IsWriteTransaction())
+          ExistingAdu->UpdateRegisterData(Adu->GetRegisterData());
+
         // we have, has it been processed?
         if (ExistingAdu->IsProcessed())
         {
@@ -526,16 +542,7 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
           if (!ExistingAdu->TcpSendResponse(Sfd, Adu->GetTransactionId()))
             ValidClient = false;
           Transacted = true;
-          // write transactions only executed once
-          if (ExistingAdu->IsWriteTransaction())
-          {
-            delete ExistingAdu;
-            // delete from the list of pending requests
-            ModbusClientRequests.erase(It);
-          }
         }
-        else if (Adu->IsWriteTransaction())  // update identical write transaction with new data
-          ExistingAdu->UpdateRegisterData(Adu->GetRegisterData());
 
         // no need to add this one to the list
         AddNewRequest = false;
@@ -562,15 +569,16 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
   return ValidClient;
 }
 
+// process any pending TCP modbus requests from an external client
 bool ProcessPendingModbusTcpRequests(const char *Device)
 {
   ModbusTcpAdu *PendingRequest = nullptr ;
 
   {
     // lockout access to the client list whilst we find a pending request
-    boost::lock_guard<boost::mutex> lock(ModbusClientMutex);
+    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
 
-    // check to see if we've already got an identical request pending
+    // check to see if we've already got any request pending
     for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
     {
       if (!(*It)->IsProcessed())
@@ -585,10 +593,13 @@ bool ProcessPendingModbusTcpRequests(const char *Device)
   if (!PendingRequest)
     return false;
 
-  // if the request failed, delete it from the list
+  // perform the request. Note that this since this can be time consuming, the client request
+  // lock is deliberately released during this period. This also means that the TCP service
+  // thread must not remove/delete anything in the list - which it doesn't
   if (!PendingRequest->PerformRTUTransaction(Device))
   {
-    boost::lock_guard<boost::mutex> lock(ModbusClientMutex);
+    // if the request failed, just remove it from the list. The client can retry again if it wants
+    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
     for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
     {
       if ((*It) == PendingRequest)
@@ -599,6 +610,25 @@ bool ProcessPendingModbusTcpRequests(const char *Device)
     }
     delete PendingRequest;
   }
+  else if (PendingRequest->IsWriteTransaction())
+  {
+    // if just performed a write transaction, remove any read transactions that have overlapping
+    // register regions as they will now be invalid
+    auto MatchingReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+                            [PendingRequest](ModbusTcpAdu *Inst) { return Inst->InvalidateAdu(*PendingRequest); } ) ;
+
+    for (auto It = MatchingReads; It != ModbusClientRequests.end(); ++It)
+      delete *It;
+    ModbusClientRequests.erase(MatchingReads, ModbusClientRequests.end());
+  }
+
+  // check for and remove any stale read data ie. older than 5 minutes to force a refresh
+  auto StaleReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+    [](ModbusTcpAdu *Inst) { return Inst->IsStale(); });
+
+  for (auto It = StaleReads; It != ModbusClientRequests.end(); ++It)
+    delete *It;
+  ModbusClientRequests.erase(StaleReads, ModbusClientRequests.end());
 
   return true;
 }
@@ -688,7 +718,10 @@ int main(int argc, char *argv[])
     {
       // if there is at least one client requiring attention, use this cycle to
       // service it rather than our usual poll
-      if (!ProcessPendingModbusTcpRequests(argv[1]) && ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, SlaveId))
+      if (ProcessPendingModbusTcpRequests(argv[1]))
+      {
+      }
+      else if ( ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, SlaveId))
       {
         if (Verbose)
         {

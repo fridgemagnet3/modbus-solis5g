@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
   if (argc > 3)
     SimulateLogger = strtoul(argv[3], NULL, 0) ? true : false;
 
-  ModBusMapping = modbus_mapping_new_start_address(0, 0, 0, 0, 0, 0, 33000, 300);
+  ModBusMapping = modbus_mapping_new_start_address(500, 1, 12500, 100, 43000, 300, 33000, 300);
   if (!ModBusMapping)
   {
     printf("modbus_mapping_new_start_address: %s\n", modbus_strerror(errno));
@@ -268,6 +268,9 @@ int main(int argc, char *argv[])
   for (i = 0; i < ModBusMapping->nb_input_registers ; i++)
     ModBusMapping->tab_input_registers[i] = *RegPtr++;
 
+  // set a dummy, non-zero bit count for testing
+  ModBusMapping->tab_input_bits[0] = 0x55 ;
+  
   // start the run
   while (Rc>=0)
   {

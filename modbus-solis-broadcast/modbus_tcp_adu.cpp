@@ -1,6 +1,12 @@
 #include "modbus_tcp_adu.h"
 #include <stdio.h>
+#ifndef WIN32
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#endif
 
+// supported function code definitions
 const uint8_t ModbusTcpAdu::FCodeReadDiscrete = 2;
 const uint8_t ModbusTcpAdu::FCodeReadHolding = 3;
 const uint8_t ModbusTcpAdu::FCodeReadInput = 4 ;
@@ -8,6 +14,7 @@ const uint8_t ModbusTcpAdu::FCodeWriteSingle = 6;
 const uint8_t ModbusTcpAdu::FCodeWriteCoil = 5;
 const uint8_t ModbusTcpAdu::FCodeWriteMultiple = 16; 
 
+// attempt to construct a modbus TCP ADU from the supplied frame data
 ModbusTcpAdu::ModbusTcpAdu(SOCKET Sfd, const uint8_t *Frame, uint32_t Len) : Sfd(Sfd)
 {
   // minimum frame length for the protocol header
@@ -49,6 +56,32 @@ ModbusTcpAdu::ModbusTcpAdu(SOCKET Sfd, const uint8_t *Frame, uint32_t Len) : Sfd
     FunctionCode != FCodeWriteMultiple)
   {
     return;
+  }
+
+  // set the transaction type
+  switch (FunctionCode)
+  {
+  case FCodeReadDiscrete :
+
+    Transaction = DISCRETES;
+    break;
+
+  case FCodeWriteCoil :
+
+    Transaction = COILS;
+    break;
+
+  case FCodeReadInput :
+
+    Transaction = INPUT_REGISTERS;
+    break;
+
+  case FCodeWriteSingle :
+  case FCodeWriteMultiple :
+  case FCodeReadHolding :
+
+    Transaction = HOLDING_REGISTERS;
+    break;
   }
 
   // all of these start with a register address
@@ -124,7 +157,7 @@ bool ModbusTcpAdu::TcpSendDeviceBusy(void) const
     return false;
 }
 
-bool ModbusTcpAdu::IsIdenticalAdu(const ModbusTcpAdu &Other) const
+bool ModbusTcpAdu::IsIdenticalAdu(const ModbusTcpAdu &Other, bool IncludeRegisterData) const
 {
   // all this lot must be the same
   if (Length == Other.Length &&
@@ -133,7 +166,14 @@ bool ModbusTcpAdu::IsIdenticalAdu(const ModbusTcpAdu &Other) const
     RegisterAddress == Other.RegisterAddress &&
     RegisterCount == Other.RegisterCount)
   {
-    return true;
+    // checking the register data only pertinent for write transactions
+    if (IncludeRegisterData && IsWriteTransaction())
+    {
+      if (RegisterData == Other.RegisterData)
+        return true;
+    }
+    else
+      return true;
   }
   return false;
 }
@@ -144,6 +184,8 @@ bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId) const
   uint8_t Frame[1500];
   uint16_t *APtr = (uint16_t*)Frame;
   uint16_t ByteCount, FrameLen = sizeof(uint8_t) ;  // unit identifier is always present in the ADU header
+  uint8_t BitShift;
+  uint8_t DiscreteByte;
 
   // construct the TCP header
   *APtr++ = htons(TransactionId);
@@ -152,12 +194,21 @@ bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId) const
   switch (FunctionCode)
   {
   case FCodeReadDiscrete :
+
+    // discretes are bit packed
+    ByteCount = RegisterCount / 8;
+    if ((RegisterCount % 8) != 0)
+      ByteCount++;
+    // Framelen in the ADU is function + bytecount + bytecount's worth of data
+    FrameLen += sizeof(uint8_t) * 2 + ByteCount;
+    break;
+
   case FCodeReadHolding :
   case FCodeReadInput :
 
     // ByteCount in the PDU is the register count * 2
     ByteCount = RegisterCount*sizeof(uint16_t);
-    // Framelen in the ADU is function + bytecount + the byte count
+    // Framelen in the ADU is function + bytecount + bytecount's worth of data
     FrameLen += sizeof(uint8_t) * 2 + ByteCount;
     break;
 
@@ -182,6 +233,30 @@ bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId) const
   switch (FunctionCode)
   {
   case FCodeReadDiscrete :
+
+    *DPtr++ = ByteCount;
+
+    // discrete inputs are returned as a packed array of bits
+    BitShift = 0;
+    DiscreteByte = 0;
+    for (auto It = RegisterData.begin(); It != RegisterData.end(); ++It)
+    {
+      auto Val = *It;
+
+      if (Val)
+        DiscreteByte |= (1 << BitShift);
+      BitShift++;
+      if (BitShift==8)
+      {
+        *DPtr++ = DiscreteByte;
+        BitShift = 0;
+        DiscreteByte = 0;
+      }
+    }
+    if (BitShift)
+      *DPtr++ = DiscreteByte;
+    break;
+
   case FCodeReadHolding:
   case FCodeReadInput:
 
@@ -230,20 +305,20 @@ modbus_t *ModbusTcpAdu::CreateModbusRtuSession(const char *Device, uint8_t Slave
   if (!Ctx)
   {
     printf("modbus_new_rtu: %s\n", modbus_strerror(errno));
-    return false;
+    return nullptr;
   }
   if (modbus_connect(Ctx) == -1)
   {
     printf("modbus_connect: %s\n", modbus_strerror(errno));
     modbus_free(Ctx);
-    return false;
+    return nullptr;
   }
   if (modbus_set_slave(Ctx, Slave) == -1)
   {
     printf("modbus_set_slave: %s\n", modbus_strerror(errno));
     modbus_close(Ctx);
     modbus_free(Ctx);
-    return false;
+    return nullptr;
   }
 #ifdef WIN32
   // for testing
@@ -260,12 +335,26 @@ bool ModbusTcpAdu::PerformRTUTransaction(const char *Device)
   modbus_t *Ctx = ModbusTcpAdu::CreateModbusRtuSession(Device, UnitId);
   int Rc = -1 ;
   uint16_t *RegBank;
+  uint8_t *DiscreteBank;
 
   if (!Ctx)
     return false;
 
   switch (FunctionCode)
   {
+    case FCodeReadDiscrete :
+
+      DiscreteBank = new uint8_t[RegisterCount];
+      Rc = modbus_read_input_bits(Ctx, RegisterAddress, RegisterCount, DiscreteBank);
+      if (Rc == RegisterCount)
+      {
+        for (uint16_t i = 0; i < RegisterCount; i++)
+          RegisterData.push_back(DiscreteBank[i]);
+        Processed = true;
+      }
+      delete DiscreteBank;
+      break;
+
     case FCodeReadHolding :
 
       RegBank = new uint16_t[RegisterCount];
@@ -296,7 +385,7 @@ bool ModbusTcpAdu::PerformRTUTransaction(const char *Device)
     // to be written
     case FCodeWriteCoil:
     {
-      boost::lock_guard<boost::mutex> lock(WriteMutex);
+      boost::lock_guard<boost::mutex> RegisterLock(WriteMutex);
       if (RegisterData.front())
         Rc = modbus_write_bit(Ctx, RegisterAddress, TRUE);
       else
@@ -308,7 +397,7 @@ bool ModbusTcpAdu::PerformRTUTransaction(const char *Device)
 
     case FCodeWriteSingle:
     {
-      boost::lock_guard<boost::mutex> lock(WriteMutex);
+      boost::lock_guard<boost::mutex> RegisterLock(WriteMutex);
       Rc = modbus_write_register(Ctx, RegisterAddress, RegisterData.front());
       if (Rc == 1)
         Processed = true;
@@ -317,7 +406,7 @@ bool ModbusTcpAdu::PerformRTUTransaction(const char *Device)
 
     case FCodeWriteMultiple:
     {
-      boost::lock_guard<boost::mutex> lock(WriteMutex);
+      boost::lock_guard<boost::mutex> RegisterLock(WriteMutex);
       Rc = modbus_write_registers(Ctx, RegisterAddress, RegisterCount, RegisterData.data());
       if (Rc == RegisterCount)
         Processed = true;
@@ -333,4 +422,24 @@ bool ModbusTcpAdu::PerformRTUTransaction(const char *Device)
     ProcessTime = boost::chrono::steady_clock::now();
 
   return Processed;
+}
+
+// cross check register range held in supplied ADU against ours
+// and if there is an overlap, mark as invalid
+bool ModbusTcpAdu::InvalidateAdu(const ModbusTcpAdu &Other)
+{
+  if (Transaction == Other.Transaction)
+  {
+    if (IsRegisterInRange(Other.RegisterAddress))
+    {
+      Processed = false;
+      return true;
+    }
+    if (Other.IsRegisterInRange(RegisterAddress))
+    {
+      Processed = false;
+      return true;
+    }
+  }
+  return false;
 }

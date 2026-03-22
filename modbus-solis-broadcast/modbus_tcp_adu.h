@@ -32,7 +32,7 @@ public :
   bool TcpSendDeviceBusy(void) const ;
 
   // is this the same content as supplied ADU
-  bool IsIdenticalAdu(const ModbusTcpAdu &Other) const;
+  bool IsIdenticalAdu(const ModbusTcpAdu &Other, bool IncludeRegisterData = false) const;
 
   // has this ADU been processed?
   bool IsProcessed(void) const
@@ -68,7 +68,7 @@ public :
   {
     // take the register write lock mutex to ensure
     // we can't update this whilst it's being send to the RTU slave
-    boost::lock_guard<boost::mutex> lock(WriteMutex);
+    boost::lock_guard<boost::mutex> RegisterLock(WriteMutex);
 
     if (RegisterData != NewData)
     {
@@ -78,8 +78,34 @@ public :
     }
   }
 
+  // perform the RTU transaction for this request
+  bool PerformRTUTransaction(const char *Device);
+
+  // indicates if this ADU is considered stale ie. older than 5 minutes
+  bool IsStale(void) const
+  {
+    // write transactions don't ever go stale
+    if (IsWriteTransaction())
+      return false;
+
+    const boost::chrono::minutes LifeTime(5);
+
+    if (boost::chrono::steady_clock::now() > (ProcessTime + LifeTime))
+      return true;
+    return false;
+  }
+
+  // checks to see if this ADU holds register data present in the supplied
+  // and if so, marks it as invalid
+  bool InvalidateAdu(const ModbusTcpAdu &Other);
+
+  // create a modbus RTU session 
+  static modbus_t *CreateModbusRtuSession(const char *Device, uint8_t Slave = 1);
+
+private :
+
   // is register in the range defined by this ADU
-  bool RegisterInRange(uint16_t Register) const
+  bool IsRegisterInRange(uint16_t Register) const
   {
     if (Register >= RegisterAddress && Register < (RegisterAddress + RegisterCount))
       return true;
@@ -87,19 +113,8 @@ public :
       return false;
   }
 
-  // perform the RTU transaction for this request
-  bool PerformRTUTransaction(const char *Device);
-
-  // time this RTU was transacted (only if IsProcessed() is true)
-  boost::chrono::steady_clock::time_point GetRTUTransactionTime(void) const
-  {
-    return ProcessTime;
-  }
-
-  // create a modbus RTU session 
-  static modbus_t *CreateModbusRtuSession(const char *Device, uint8_t Slave = 1);
-
-private :
+  // type of transaction
+  typedef enum { COILS, DISCRETES, HOLDING_REGISTERS, INPUT_REGISTERS } Transaction_t;
 
   // client socket
   SOCKET Sfd;
@@ -116,6 +131,8 @@ private :
   uint16_t RegisterAddress;
   // no. of registers to be read/written
   uint16_t RegisterCount;
+  // type of transaction
+  Transaction_t Transaction;
 
   // register data - holds data to be written or just read 
   std::vector<uint16_t> RegisterData;
