@@ -576,23 +576,20 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
 // process any pending TCP modbus requests from an external client
 bool ProcessPendingModbusTcpRequests(const char *Device)
 {
-  ModbusTcpAdu *PendingRequest = nullptr ;
+  uint32_t TransactCount = 0u;
+  // maxm. no of transactions/register accesses allowed in this slot
+  // our "normal" poll reads 9 registers in 4 distinct transactions which leaves
+  // 6s to spare in the final cycle. The idea is that these custom transactions
+  // (if >1) should more or less take the same time so we don't disrupt the overall
+  // timing. 
+  // Given the logger can read 250 registers in ~3s, this should be very conservative...
+
+  const uint32_t MaxTransactions = 25;  
 
   {
-    // lockout access to the client list whilst we find a pending request
     boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
 
-    // check to see if we've already got any request pending
-    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
-    {
-      if (!(*It)->IsProcessed())
-      {
-        PendingRequest = *It;
-        break;
-      }
-    }
-
-    // check for and remove any stale read data ie. older than 5 minutes to force a refresh
+    // check for and remove any stale read data to force a refresh
     auto StaleReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
       [](ModbusTcpAdu *Inst) {
       if (Inst->IsStale())
@@ -606,56 +603,91 @@ bool ProcessPendingModbusTcpRequests(const char *Device)
     });
 
     ModbusClientRequests.erase(StaleReads, ModbusClientRequests.end());
-
-    if (Verbose)
-      printf("ModbusClientRequests total: %u\n", ModbusClientRequests.size());
   }
 
-  // nothing pending
-  if (!PendingRequest)
-    return false;
-
-  if (Verbose)
-    printf("Executing: %s\n", PendingRequest->GetTransactionString().c_str());
-
-  // perform the request. Note that this since this can be time consuming, the client request
-  // lock is deliberately released during this period. This also means that the TCP service
-  // thread must not remove/delete anything in the list - which it doesn't
-  if (!PendingRequest->PerformRTUTransaction(Device))
+  while (true)
   {
-    // if the request failed, just remove it from the list. The client can retry again if it wants
-    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
-    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    ModbusTcpAdu *PendingRequest = nullptr;
+
     {
-      if ((*It) == PendingRequest)
+      uint32_t Unprocessed = 0;
+
+      // lockout access to the client list whilst we find a pending request
+      boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
+
+      // check to see if we've already got any request pending
+      for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
       {
-        ModbusClientRequests.erase(It);
-        break;
+        if (!(*It)->IsProcessed())
+        {
+          if (!PendingRequest)
+            PendingRequest = *It;
+          Unprocessed++;
+        }
+      }
+
+      if (Verbose)
+      {
+        printf("ModbusClientRequests total: %u\n", ModbusClientRequests.size());
+        printf("ModbusClientRequests unprocessed: %u\n", Unprocessed);
       }
     }
-    delete PendingRequest;
+
+    // nothing pending
+    if (!PendingRequest)
+      return TransactCount ? true : false;
+
+    // if already done at least one transaction, check this one won't tip us over the max for this slot
+    // - if so, bail now 
+    if (TransactCount && ((TransactCount + PendingRequest->GetRegisterCount()) > MaxTransactions))
+      return true;
+
+    if (Verbose)
+      printf("Executing: %s\n", PendingRequest->GetTransactionString().c_str());
+
+    // track total transactions
+    TransactCount += PendingRequest->GetRegisterCount();
+
+    // perform the request. Note that this since this can be time consuming, the client request
+    // lock is deliberately released during this period. This also means that the TCP service
+    // thread must not remove/delete anything in the list - which it doesn't
+    if (!PendingRequest->PerformRTUTransaction(Device))
+    {
+      // if the request failed, just remove it from the list. The client can retry again if it wants
+      boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
+      for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+      {
+        if ((*It) == PendingRequest)
+        {
+          ModbusClientRequests.erase(It);
+          break;
+        }
+      }
+      delete PendingRequest;
+    }
+    else if (PendingRequest->IsWriteTransaction())
+    {
+      boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
+
+      // if just performed a write transaction, remove any transactions that have overlapping
+      // register regions as they will now be invalid
+      auto MatchingRequests = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+        [PendingRequest](ModbusTcpAdu *Inst) {
+        if ((Inst != PendingRequest) && Inst->InvalidateAdu(*PendingRequest))
+        {
+          if (Verbose) printf("Deleting invalidated: %s\n", Inst->GetTransactionString().c_str());
+          delete Inst;
+          return true;
+        }
+        else
+          return false;
+      });
+
+      ModbusClientRequests.erase(MatchingRequests, ModbusClientRequests.end());
+    }
   }
-  else if (PendingRequest->IsWriteTransaction())
-  {
-    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
 
-    // if just performed a write transaction, remove any transactions that have overlapping
-    // register regions as they will now be invalid
-    auto MatchingRequests = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
-                            [PendingRequest](ModbusTcpAdu *Inst) {
-                              if ((Inst != PendingRequest) && Inst->InvalidateAdu(*PendingRequest) )
-                              {
-                                if (Verbose) printf("Deleting invalidated: %s\n", Inst->GetTransactionString().c_str());
-                                delete Inst ;
-                                return true ;
-                              }
-                              else
-                                return false ; 
-                              } ) ;
-
-    ModbusClientRequests.erase(MatchingRequests, ModbusClientRequests.end());
-  }
-
+  // can never reach here now
   return true;
 }
 

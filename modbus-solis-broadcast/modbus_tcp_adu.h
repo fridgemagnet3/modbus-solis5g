@@ -13,6 +13,7 @@ typedef int SOCKET;
 #include <modbus/modbus.h>
 #include <boost/thread.hpp>
 #include <sstream>
+#include <map>
 
 // class holding a Modbus TCP ADU
 
@@ -45,6 +46,12 @@ public :
   uint16_t GetTransactionId(void) const
   {
     return TransactionId;
+  }
+
+  // register count in this transaction
+  uint16_t GetRegisterCount(void) const
+  {
+    return RegisterCount;
   }
 
   // indicates if transaction is write request
@@ -108,7 +115,7 @@ public :
   {
     std::stringstream Buf;
 
-    Buf << "Function: " << (uint32_t)FunctionCode << " RegBase: " << RegisterAddress << " Count: " << RegisterCount;
+    Buf << FunctionDescriptions[FunctionCode] << " (" << (uint32_t)FunctionCode << "), RegBase: " << RegisterAddress << " Count: " << RegisterCount;
 
     return Buf.str();
   }
@@ -167,6 +174,8 @@ private :
   static const uint8_t FCodeWriteCoil;
   static const uint8_t FCodeWriteSingle;
   static const uint8_t FCodeWriteMultiple;
+
+  static std::map<uint8_t,std::string> FunctionDescriptions;
 
 };
 
