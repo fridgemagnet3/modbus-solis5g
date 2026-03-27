@@ -80,6 +80,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="modbus-solis-broadcast.cpp" />
+    <ClCompile Include="modbus_tcp_adu.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="modbus_tcp_adu.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

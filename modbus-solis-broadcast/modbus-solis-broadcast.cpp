@@ -559,7 +559,11 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
 
     // need to add this to the list of pending requests?
     if (AddNewRequest && ValidClient)
+    {
+      if (Verbose)
+        printf("Add new transaction: %s\n", Adu->GetTransactionString().c_str());
       ModbusClientRequests.push_back(Adu);
+    }
     else
       delete Adu;  // request already exists in queue so discard
   }
@@ -587,11 +591,32 @@ bool ProcessPendingModbusTcpRequests(const char *Device)
         break;
       }
     }
+
+    // check for and remove any stale read data ie. older than 5 minutes to force a refresh
+    auto StaleReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+      [](ModbusTcpAdu *Inst) {
+      if (Inst->IsStale())
+      {
+        if (Verbose) printf("Deleting stale: %s\n", Inst->GetTransactionString().c_str());
+        delete Inst;
+        return true;
+      }
+      else
+        return false;
+    });
+
+    ModbusClientRequests.erase(StaleReads, ModbusClientRequests.end());
+
+    if (Verbose)
+      printf("ModbusClientRequests total: %u\n", ModbusClientRequests.size());
   }
 
   // nothing pending
   if (!PendingRequest)
     return false;
+
+  if (Verbose)
+    printf("Executing: %s\n", PendingRequest->GetTransactionString().c_str());
 
   // perform the request. Note that this since this can be time consuming, the client request
   // lock is deliberately released during this period. This also means that the TCP service
@@ -612,23 +637,24 @@ bool ProcessPendingModbusTcpRequests(const char *Device)
   }
   else if (PendingRequest->IsWriteTransaction())
   {
-    // if just performed a write transaction, remove any read transactions that have overlapping
+    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
+
+    // if just performed a write transaction, remove any transactions that have overlapping
     // register regions as they will now be invalid
-    auto MatchingReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
-                            [PendingRequest](ModbusTcpAdu *Inst) { return Inst->InvalidateAdu(*PendingRequest); } ) ;
+    auto MatchingRequests = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+                            [PendingRequest](ModbusTcpAdu *Inst) {
+                              if ((Inst != PendingRequest) && Inst->InvalidateAdu(*PendingRequest) )
+                              {
+                                if (Verbose) printf("Deleting invalidated: %s\n", Inst->GetTransactionString().c_str());
+                                delete Inst ;
+                                return true ;
+                              }
+                              else
+                                return false ; 
+                              } ) ;
 
-    for (auto It = MatchingReads; It != ModbusClientRequests.end(); ++It)
-      delete *It;
-    ModbusClientRequests.erase(MatchingReads, ModbusClientRequests.end());
+    ModbusClientRequests.erase(MatchingRequests, ModbusClientRequests.end());
   }
-
-  // check for and remove any stale read data ie. older than 5 minutes to force a refresh
-  auto StaleReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
-    [](ModbusTcpAdu *Inst) { return Inst->IsStale(); });
-
-  for (auto It = StaleReads; It != ModbusClientRequests.end(); ++It)
-    delete *It;
-  ModbusClientRequests.erase(StaleReads, ModbusClientRequests.end());
 
   return true;
 }

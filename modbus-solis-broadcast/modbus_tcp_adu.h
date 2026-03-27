@@ -12,6 +12,7 @@ typedef int SOCKET;
 #include <boost/chrono/chrono.hpp>
 #include <modbus/modbus.h>
 #include <boost/thread.hpp>
+#include <sstream>
 
 // class holding a Modbus TCP ADU
 
@@ -84,6 +85,9 @@ public :
   // indicates if this ADU is considered stale ie. older than 5 minutes
   bool IsStale(void) const
   {
+    if (!Processed)
+      return false;
+
     // write transactions don't ever go stale
     if (IsWriteTransaction())
       return false;
@@ -98,6 +102,16 @@ public :
   // checks to see if this ADU holds register data present in the supplied
   // and if so, marks it as invalid
   bool InvalidateAdu(const ModbusTcpAdu &Other);
+
+  // generate string with transaction info - for diag purposes
+  std::string GetTransactionString(void)
+  {
+    std::stringstream Buf;
+
+    Buf << "Function: " << (uint32_t)FunctionCode << " RegBase: " << RegisterAddress << " Count: " << RegisterCount;
+
+    return Buf.str();
+  }
 
   // create a modbus RTU session 
   static modbus_t *CreateModbusRtuSession(const char *Device, uint8_t Slave = 1);

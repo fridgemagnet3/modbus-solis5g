@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
   if (argc > 3)
     SimulateLogger = strtoul(argv[3], NULL, 0) ? true : false;
 
-  ModBusMapping = modbus_mapping_new_start_address(500, 1, 12500, 100, 43000, 300, 33000, 300);
+  ModBusMapping = modbus_mapping_new_start_address(500, 1, 12500, 100, 43000, 1000, 33000, 2500);
   if (!ModBusMapping)
   {
     printf("modbus_mapping_new_start_address: %s\n", modbus_strerror(errno));
@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
   // 33147: House load power: 389 W
   // 33149:33150: Battery power: 178 W
   // 33263:33264 : Meter total active power : -0.176000 kW
-  for (i = 0; i < ModBusMapping->nb_input_registers ; i++)
+  for (i = 0; i < registers_bin_len/sizeof(uint16_t); i++)
     ModBusMapping->tab_input_registers[i] = *RegPtr++;
 
   // set a dummy, non-zero bit count for testing

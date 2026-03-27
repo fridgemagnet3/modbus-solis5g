@@ -18,5 +18,13 @@
     <ClCompile Include="modbus-solis-broadcast.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="modbus_tcp_adu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="modbus_tcp_adu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
