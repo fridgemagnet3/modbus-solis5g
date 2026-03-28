@@ -628,7 +628,7 @@ bool ProcessPendingModbusTcpRequests(const char *Device)
 
       if (Verbose)
       {
-        printf("ModbusClientRequests total: %u\n", ModbusClientRequests.size());
+        printf("ModbusClientRequests total: %lu\n", ModbusClientRequests.size());
         printf("ModbusClientRequests unprocessed: %u\n", Unprocessed);
       }
     }

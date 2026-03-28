@@ -75,7 +75,7 @@ public :
   void UpdateRegisterData(const std::vector<uint16_t>NewData)
   {
     // take the register write lock mutex to ensure
-    // we can't update this whilst it's being send to the RTU slave
+    // we can't update this whilst it's being sent to the RTU slave
     boost::lock_guard<boost::mutex> RegisterLock(WriteMutex);
 
     if (RegisterData != NewData)
@@ -89,7 +89,7 @@ public :
   // perform the RTU transaction for this request
   bool PerformRTUTransaction(const char *Device);
 
-  // indicates if this ADU is considered stale ie. older than 5 minutes
+  // indicates if this ADU is considered stale based on age
   bool IsStale(void) const
   {
     if (!Processed)
@@ -99,10 +99,18 @@ public :
     if (IsWriteTransaction())
       return false;
 
-    const boost::chrono::minutes LifeTime(5);
-
-    if (boost::chrono::steady_clock::now() > (ProcessTime + LifeTime))
-      return true;
+    // holding registers (apart from the clock) are mostly controls
+    // so shouldn't really change...
+    if ( Transaction == HOLDING_REGISTERS )
+    {
+      if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::minutes(20)))
+        return true;
+    }
+    else
+    {
+      if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::minutes(5)))
+        return true;
+    }
     return false;
   }
 
