@@ -574,23 +574,26 @@ int main(int argc, char *argv[])
   bool DecodeError = false ;
   
   // the slave is needed to allow us to try and sync up with the incoming data
-	if ( argc < 2 )
-	{
-		printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1]\n");
-		return -1 ;
-	}
-	
+  if ( argc < 2 )
+  {
+    printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1]\n");
+    return -1 ;
+  }
+  if ( !strcmp(argv[1],"-") )
+    Fd = 0 ; // stdin
+  else	
 #ifdef WIN32
-  Fd = _open(argv[1], O_RDONLY | _O_BINARY );
+    Fd = _open(argv[1], O_RDONLY | _O_BINARY );
 #else
-  Fd = open(argv[1], O_RDONLY);
+    Fd = open(argv[1], O_RDONLY);
 #endif
 
-	if ( Fd < 0 )
-	{
-		perror("Failed to open input");
-		return -1 ;
-	}
+  if ( Fd < 0 )
+  {
+    perror("Failed to open input");
+    return -1 ;
+  }
+   
 #ifndef WIN32
 
    struct stat StatBuf ;
