@@ -44,6 +44,21 @@ ha_etoday_discover = '''
 }
 '''
 
+ha_etotal_discover = '''
+{
+        "name": "Solar generation total",
+        "state_topic": "solar/etotal",
+        "device_class": "energy",
+        "suggested_display_precision": 1,
+        "platform": "sensor",
+        "unit_of_measurement": "MWh",
+        "state_class": "total",
+        "expire_after": 600,
+        "unique_id": "solar_etotal"
+}
+'''
+
+
 ha_familyload_discover = '''
 {
         "name": "House load power",
@@ -171,6 +186,7 @@ print("starting loop")
 mqttc.publish("homeassistant/sensor/solar/batteryPower/config",ha_battery_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/batteryCapacitySoc/config",ha_battery_capacity_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/etoday/config",ha_etoday_discover,retain=True)
+mqttc.publish("homeassistant/sensor/solar/etotal/config",ha_etotal_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/familyLoadPower/config",ha_familyload_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/pac/config",ha_pac_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/psum/config",ha_psum_discover,retain=True)
@@ -203,6 +219,9 @@ while True:
         if 'gridSellTodayEnergy' in json_solar_data['data']:
             gridSellTodayEnergy = str(json_solar_data['data']['gridSellTodayEnergy'])
             mqttc.publish("solar/gridSellTodayEnergy",gridSellTodayEnergy)
+        if 'eTotal' in json_solar_data['data']:
+            eTotal = str(json_solar_data['data']['eTotal'])
+            mqttc.publish("solar/etotal",eTotal)
         # this is ONLY in the data published locally and provides a counter
         # of how many times the modbus app detects that the logger has stopped issuing requests
         if 'loggerFail' in json_solar_data:
