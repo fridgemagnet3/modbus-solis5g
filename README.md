@@ -2,6 +2,12 @@
 
 This is a collection of some applications, tools and utilities I've put together for firstly investigating then retrieving information from a Solis 5G solar inverter via Modbus.
 
+## !! Check your DataLogger version !!
+
+It's transpired that different versions of firmware in the datalogger behave radically differently, as a result you may see the same behaviour I describe below. For example, version 10154 consumes most of bandwidth of the 5 minute cycle polling for non-existent slaves.
+
+As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast) and [modbus-esp32](#modbus-esp32) apps work as against firmware version **1012f**. Likewise the [modbus-slave](#modbus-slave) app will be mimicing the behaviour of that same version of datalogger.
+
 ## Background
 
 Solis 5G inverters allow for the connection of a Wifi dongle which allows information to be uploaded to the Solis cloud servers (in China). In turn, this information can be retrieved via the [SolisCloud website](https://www.soliscloud.com) and/or via the app.
