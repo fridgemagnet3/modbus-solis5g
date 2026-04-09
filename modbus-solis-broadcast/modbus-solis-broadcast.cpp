@@ -373,6 +373,9 @@ static SOCKET CreateModbusTCPServer(void)
     return Sfd;
   }
 
+  const int Enable = 1 ;
+  setsockopt(Sfd, SOL_SOCKET, SO_REUSEADDR,&Enable,sizeof(int)) ;
+
   SLen = sizeof(ServerAddr);
   if (bind(Sfd, (struct sockaddr*)&ServerAddr, SLen) < 0)
   {
