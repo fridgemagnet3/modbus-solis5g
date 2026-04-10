@@ -14,6 +14,7 @@ typedef int SOCKET;
 #include <io.h>
 #pragma warning(disable : 4996)
 #define sleep(x) Sleep(x*1000)
+#define O_NONBLOCK 0x80000
 #endif
 #include <errno.h>
 #include <modbus/modbus.h>
@@ -144,9 +145,189 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   return Ret;
 }
 
-// this doesn't work on Win32 because you can't use 'select' on anything but sockets...
-#ifndef WIN32
+#ifdef WIN32
+static HANDLE OpenW32Serial(const char *Device, int Flags)
+{
+  DWORD CommFlags = 0 ;
+
+  if (Flags & O_WRONLY)
+    CommFlags |= GENERIC_WRITE;
+  else
+    CommFlags = GENERIC_READ;
+  if (Flags & O_RDWR)
+    CommFlags |= (GENERIC_WRITE | GENERIC_READ);
+
+  HANDLE hComm = CreateFile(Device, CommFlags, 0, NULL, OPEN_EXISTING, 0, NULL);
+  if (hComm == INVALID_HANDLE_VALUE)
+    return hComm;
+
+  DCB Dcb;
+  Dcb.DCBlength = sizeof(Dcb);
+
+  if (!GetCommState(hComm, &Dcb))
+  {
+    CloseHandle(hComm);
+    return INVALID_HANDLE_VALUE;
+  }
+  Dcb.BaudRate = CBR_9600;
+  Dcb.ByteSize = 8;
+  Dcb.StopBits = ONESTOPBIT;
+  Dcb.Parity = NOPARITY;
+  Dcb.fBinary = TRUE;
+  Dcb.fOutxCtsFlow = FALSE;
+  Dcb.fOutxDsrFlow = FALSE;
+  Dcb.fDsrSensitivity = FALSE;
+  Dcb.fTXContinueOnXoff = FALSE;
+  Dcb.fOutX = FALSE;
+  Dcb.fInX = FALSE;
+  Dcb.fNull = FALSE;
+  Dcb.fAbortOnError = FALSE;
+  if (!SetCommState(hComm, &Dcb))
+  {
+    CloseHandle(hComm);
+    return INVALID_HANDLE_VALUE;
+  }
+
+  COMMTIMEOUTS CTimeouts;
+
+  CTimeouts.WriteTotalTimeoutMultiplier = 0;
+  CTimeouts.WriteTotalTimeoutConstant = 0;
+  if (Flags & O_NONBLOCK)
+  {
+    // emulates non-blocking behaviour
+    CTimeouts.ReadIntervalTimeout = MAXDWORD;
+    CTimeouts.ReadTotalTimeoutConstant = 0;
+    CTimeouts.ReadTotalTimeoutMultiplier = 0;
+  }
+  else
+  {
+    CTimeouts.ReadIntervalTimeout = 50;
+    CTimeouts.ReadTotalTimeoutMultiplier = 10; 
+    CTimeouts.ReadTotalTimeoutConstant = 50;
+  }
+  if (!SetCommTimeouts(hComm, &CTimeouts))
+  {
+    CloseHandle(hComm);
+    return INVALID_HANDLE_VALUE;
+  }
+  return hComm;
+}
+
+static int OpenW32SerialAsFd(const char *Device, int Flags)
+{
+  HANDLE hComm = OpenW32Serial(Device, Flags);
+  if (hComm != INVALID_HANDLE_VALUE)
+  {
+    Flags &= ~O_NONBLOCK;
+    return _open_osfhandle((intptr_t)hComm, Flags);
+  }
+  else
+    return -1;
+}
+
 // Sync with the next transfer performed by the datalogger & wait for it to finish
+// Windows version
+static bool SyncWithLogger(const char *Device)
+{
+  using namespace boost::posix_time;
+  HANDLE hComm;
+  COMMTIMEOUTS CTimeouts;
+  bool BusIdle = false;
+  uint8_t ScratchBuf[256];
+  ptime SyncStart(second_clock::local_time());
+  const uint32_t SyncTimeout = 80u;
+  DWORD BytesRead;
+
+  hComm = OpenW32Serial(Device, O_RDONLY);
+  if (hComm == INVALID_HANDLE_VALUE)
+  {
+    printf("Failed to open input: %d\n", GetLastError());
+    return false ;
+  }
+  Sleep(10) ;
+  PurgeComm(hComm, PURGE_RXCLEAR);
+
+  if (!GetCommTimeouts(hComm, &CTimeouts))
+  {
+    printf("Failed to get comm timeouts: %d\n", GetLastError());
+    CloseHandle(hComm);
+    return false;
+  }
+
+  CTimeouts.ReadTotalTimeoutConstant = SyncTimeout*1000;
+  if (!SetCommTimeouts(hComm, &CTimeouts))
+  {
+    printf("Failed to set comm timeouts: %d\n", GetLastError());
+    CloseHandle(hComm);
+    return false;
+  }
+
+  if ( Verbose )
+    std::cout << std::endl << "Sync with logger at " << to_simple_string(SyncStart) << "..." << std::endl ;
+
+  // first, wait for the next burst of traffic from the logger, this normally occurs every minute
+  BOOL ReadStatus = ReadFile(hComm, ScratchBuf, sizeof(ScratchBuf), &BytesRead, NULL);
+
+  if (ReadStatus && BytesRead)
+  {
+    ptime WaitIdle(second_clock::local_time());
+    auto Elapsed = WaitIdle - SyncStart;
+
+    if (Verbose)
+    {
+      std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
+      std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl;
+    }
+
+    // wait for ~12s of inactivity
+    CTimeouts.ReadTotalTimeoutConstant = 12 * 1000;
+    if (!SetCommTimeouts(hComm, &CTimeouts))
+    {
+      printf("Failed to set comm timeouts: %d\n", GetLastError());
+      CloseHandle(hComm);
+      return false;
+    }
+
+    // sit in loop waiting for the bus to become inactive again
+    while (!BusIdle)
+    {
+      if (ReadFile(hComm, ScratchBuf, sizeof(ScratchBuf), &BytesRead, NULL))
+      {
+        if (!BytesRead)
+          BusIdle = true;
+      }
+      else
+      {
+        printf("Error on read: %d\n", GetLastError());
+        break;
+      }
+    }
+
+    if (Verbose)
+    {
+      ptime NowIdle(second_clock::local_time());
+      Elapsed = NowIdle - WaitIdle;
+
+      std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
+    }
+  }
+  else if ( ReadStatus )
+  {
+    if (Verbose)
+      printf("Timed out waiting for traffic - going ahead anyway...\n");
+    BusIdle = true;
+  }
+  else
+  {
+    printf("Error on read: %d\n", GetLastError());
+  }
+  CloseHandle(hComm);
+  return BusIdle;
+}
+
+#else
+// Sync with the next transfer performed by the datalogger & wait for it to finish
+// Linux version
 static bool SyncWithLogger(const char *Device)
 {
   using namespace boost::posix_time;
@@ -159,11 +340,7 @@ static bool SyncWithLogger(const char *Device)
   ptime SyncStart(second_clock::local_time()) ;
   const uint32_t SyncTimeout = 80u ;
   
-#ifdef WIN32
-  Fd = _open(Device, O_RDONLY | _O_BINARY);
-#else
   Fd = open(Device, O_RDONLY);
-#endif
   if (Fd < 0)
   {
     perror("Failed to open input");
@@ -420,10 +597,9 @@ int main(int argc, char *argv[])
   BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
   
   printf( "Starting poll\n") ;
-#ifndef WIN32
+
   // sync to the next access performed by the data logger
   while (SyncWithLogger(argv[1]))
-#endif
   {
     // should have 50s worth of free time, which allows for 3 requests at 20s intervals
     for (uint32_t i = 0; i < RequestsPerCycle; i++)
@@ -459,13 +635,16 @@ int main(int argc, char *argv[])
       else
       {
         printf("Failed to retrieve modbus data from inverter\n");
-        break ;
       }
       // don't sleep on the last cycle
       if (i < (RequestsPerCycle - 1))
       {
         // open serial port to monitor for traffic while we sleep
+#ifdef WIN32
+        int Fd = OpenW32SerialAsFd(argv[1], O_RDONLY | O_NONBLOCK);
+#else
         int Fd = open(argv[1], O_RDONLY | O_NONBLOCK);
+#endif
         uint8_t ScratchBuf[256];
         bool ContinuePoll = false;
 
@@ -488,10 +667,14 @@ int main(int argc, char *argv[])
           else
             ContinuePoll = true;
         }
-        else if (Verbose)
+        else if (Rc)
         {
-          printf("Detected serial data, forcing re-sync\n") ;
+          if (Verbose)
+            printf("Detected serial data, forcing re-sync\n");
         }
+        else  // on Windows, the byte count comes back as zero rather than an error
+          ContinuePoll = true;
+
         close(Fd);
         if ( !ContinuePoll )
           break;
