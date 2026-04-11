@@ -6,7 +6,7 @@ As background, perusing the README on the main branch is worthwhile to give an o
 
 The new functionality allows one of those 20s slots to be used to instead be used to perform an abirtary read/write of one or more registers from the inverter, as depicted in the following diagram.
 
-<img width="668" height="255" alt="tcp-transact-timeline" src="https://github.com/user-attachments/assets/60fcd1a4-b990-42cf-944e-7f659e6e4a66" />
+<img width="696" height="299" alt="tcp-transact-timeline" src="https://github.com/user-attachments/assets/9eba929f-3cb3-4f28-8ebc-631ba8053ecb" />
 
 Note: At the present time, I have only tested this in simulation with my [modbus-slave](./modbus-slave) app, it's NOT been connected to a Solis inverter however since it uses the same Modbus library to perform the RTU transactions, I forsee no reason why it shouldn't work as expected.
 
