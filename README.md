@@ -56,8 +56,12 @@ Modbus
 ```
 Whilst read requests are supported, the primary purpose of this extension is for performing thd odd write request ie. to control the inverter in some way. If regular reads are required, it would be better to incorporate them into the regular UDP broadcast packets. Input register reads are cached for 5 minutes, holding registers for 20 minutes (on the basis the latter are more likely only to change when updated by an external write). 
 
-This works quite nicely with [fboundy's ha_solis_modbus](https://github.com/fboundy/ha_solis_modbus), which was used to generate the above network capture by using the example script to set the inverter's time. There is obviously a delay between any write/read and getting the response back however after running the script, 40-50s later, the expected results are reflected in the Solis Hour/Minute/Second RW registers.
+This works quite nicely with [fboundy's ha_solis_modbus](https://github.com/fboundy/ha_solis_modbus), which was used to generate the above network capture by using the example script to set the inverter's time. There is obviously a delay between any write/read and getting the response back however after running the script, 40-50s later, the expected results are reflected in the Solis Hour/Minute/Second RW registers. 
+
+![PXL_20260328_184423624](https://github.com/user-attachments/assets/40655d48-b9ca-4094-84f3-a8fa8cb3b5e1)
 
 It's not though really going to work that well with [Pho3niX90's Modbus integration](https://github.com/Pho3niX90/solis_modbus) which performs a LOT of register accesses, although I have run it up with this, just to prove the point. What you find is that it will take 10-15 minutes to fully enable all the sensors and controls during which period there will be no UDP broadcast packets. Ultimately what you end up with is a lag that is arguably worse than talking to the Solis cloud.
+
+![PXL_20260327_142546306](https://github.com/user-attachments/assets/92b22f75-bd58-4632-aad1-fa3f12113fba)
 
 The server should support multiple TCP clients although this is untested.
