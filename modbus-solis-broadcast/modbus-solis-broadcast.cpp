@@ -803,8 +803,8 @@ int main(int argc, char *argv[])
 
           // send out to clients
           BroadcastAddr.sin_port = htons(52005);
-          //if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
-          //  perror("sendto");
+          if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
+            perror("sendto");
           free(jSon);
         }
         else
