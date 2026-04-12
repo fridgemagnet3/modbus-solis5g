@@ -24,6 +24,13 @@ typedef int SOCKET;
 #include <sstream>
 #include <cjson/cJSON.h>
 #include <boost/crc.hpp>
+#ifdef RPI
+#include <wiringPi.h>
+
+// define GPIOs for RS485 control
+#define RS485_RE 23
+#define RS485_DE 24
+#endif
 
 //
 // Collect power generation data from Solis inverter via modbus, then
@@ -214,8 +221,24 @@ static uint8_t DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t 
   ResponseBuf[3] = ModBusCrc.checksum() & 0xff;
   ResponseBuf[4] = ModBusCrc.checksum() >> 8 ;
 
+#ifdef RPI
+  // disable receiver, enable transmitter
+  digitalWrite(RS485_RE,HIGH);
+  digitalWrite(RS485_DE,HIGH);
+#endif
+
   if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
     printf("Error on serial write\n") ;
+
+#ifdef RPI
+  // wait for serial data to drain
+  tcdrain(SerialFd) ;
+  // a delay may/may not be required here depending on how reliable 'tcdrain' actually is
+  usleep(30*1000) ;
+  // restore default receive functionality
+  digitalWrite(RS485_RE,LOW);
+  digitalWrite(RS485_DE,LOW);
+#endif
 
   return ReqSlave;
 }
@@ -704,6 +727,16 @@ int main(int argc, char *argv[])
   memset((void*)&BroadcastAddr, 0, sizeof(struct sockaddr_in));
   BroadcastAddr.sin_family = AF_INET;
   BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+  
+#ifdef RPI
+  // Use BCM addressing for GPIO
+  wiringPiSetupPinType(WPI_PIN_BCM) ;
+  pinMode(RS485_RE,OUTPUT) ;
+  pinMode(RS485_DE,OUTPUT) ;
+  // enable receiver, disable transmitter
+  digitalWrite(RS485_RE,LOW);
+  digitalWrite(RS485_DE,LOW);
+#endif
   
   printf( "Starting poll\n") ;
 
