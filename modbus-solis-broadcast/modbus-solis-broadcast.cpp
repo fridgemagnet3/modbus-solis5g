@@ -23,6 +23,7 @@ typedef int SOCKET;
 #include <iostream>
 #include <sstream>
 #include <cjson/cJSON.h>
+#include <boost/crc.hpp>
 
 //
 // Collect power generation data from Solis inverter via modbus, then
@@ -145,6 +146,80 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   return Ret;
 }
 
+// decode Modbus request and if not intended for our slave, respond with something
+// that will (hopefully) persuade the logger to stop querying it
+static uint8_t DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t SlaveId, int SerialFd)
+{
+  const uint32_t MinMsgLen = 8;
+  uint8_t ReqSlave;
+  uint8_t FCodeReadInput = 4;
+  uint16_t Crc;
+  uint16_t Register;
+
+  if ( Verbose )
+    printf("DecodeAndRespondToSlave - size %u\n",BufSz);
+
+  // messages we're expecting should all be single register read requests, 8 bytes long
+  if (BufSz < MinMsgLen)
+  {
+    if (Verbose)
+      printf("Message too short for a read input register function\n");
+    return -1;
+  }
+  // check slave not us
+  ReqSlave = Buffer[0];
+  if (ReqSlave == SlaveId)
+  {
+    if (Verbose)
+      printf("Message is for local inverter, ignoring\n");
+    return SlaveId;
+  }
+
+  // check this is a read register request
+  if (Buffer[1] != FCodeReadInput)
+  {
+    printf("Not a read input registers function, ignoring\n");
+    return -1;
+  }
+
+  // compute then verify the CRC
+  auto ModBusCrc = boost::crc_optimal<16, 0x8005, 0xFFFF, 0, true, true> {};
+  ModBusCrc.process_bytes(Buffer, MinMsgLen - sizeof(uint16_t));
+
+  Crc = (Buffer[7] << 8) + Buffer[6];
+  if (ModBusCrc.checksum() != Crc)
+  {
+    if (Verbose)
+      printf("CRC Incorrect, should be %x\n", ModBusCrc.checksum());
+    return -1;
+  }
+
+  // extract the register
+  Register = (Buffer[2] << 8) + Buffer[3];
+
+  if (Verbose)
+    printf("Message for slave: %u, register: %u\n", ReqSlave, Register);
+
+  // got what we need, now generate the response...
+  uint8_t ResponseBuf[5];
+  const uint8_t ExceptionIllegalData = 0x02;
+
+  // initial attempt: respond with an illegal address exception
+  ResponseBuf[0] = ReqSlave;
+  ResponseBuf[1] = FCodeReadInput | 0x80;
+  ResponseBuf[2] = ExceptionIllegalData;
+
+  ModBusCrc.reset();
+  ModBusCrc.process_bytes(ResponseBuf, 3);
+  ResponseBuf[3] = ModBusCrc.checksum() & 0xff;
+  ResponseBuf[4] = ModBusCrc.checksum() >> 8 ;
+
+  if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
+    printf("Error on serial write\n") ;
+
+  return ReqSlave;
+}
+
 #ifdef WIN32
 static HANDLE OpenW32Serial(const char *Device, int Flags)
 {
@@ -201,7 +276,7 @@ static HANDLE OpenW32Serial(const char *Device, int Flags)
   }
   else
   {
-    CTimeouts.ReadIntervalTimeout = 50;
+    CTimeouts.ReadIntervalTimeout = 200;
     CTimeouts.ReadTotalTimeoutMultiplier = 10; 
     CTimeouts.ReadTotalTimeoutConstant = 50;
   }
@@ -227,7 +302,7 @@ static int OpenW32SerialAsFd(const char *Device, int Flags)
 
 // Sync with the next transfer performed by the datalogger & wait for it to finish
 // Windows version
-static bool SyncWithLogger(const char *Device)
+static bool SyncWithLogger(const char *Device, uint8_t SlaveId)
 {
   using namespace boost::posix_time;
   HANDLE hComm;
@@ -236,9 +311,10 @@ static bool SyncWithLogger(const char *Device)
   uint8_t ScratchBuf[256];
   ptime SyncStart(second_clock::local_time());
   const uint32_t SyncTimeout = 80u;
-  DWORD BytesRead;
+  int BytesRead;
+  int SerialFd;
 
-  hComm = OpenW32Serial(Device, O_RDONLY);
+  hComm = OpenW32Serial(Device, O_RDWR);
   if (hComm == INVALID_HANDLE_VALUE)
   {
     printf("Failed to open input: %d\n", GetLastError());
@@ -265,10 +341,13 @@ static bool SyncWithLogger(const char *Device)
   if ( Verbose )
     std::cout << std::endl << "Sync with logger at " << to_simple_string(SyncStart) << "..." << std::endl ;
 
-  // first, wait for the next burst of traffic from the logger, this normally occurs every minute
-  BOOL ReadStatus = ReadFile(hComm, ScratchBuf, sizeof(ScratchBuf), &BytesRead, NULL);
+  // create an associated file descriptor for parity with Linux version
+  SerialFd = _open_osfhandle((intptr_t)hComm, O_RDWR);
 
-  if (ReadStatus && BytesRead)
+  // first, wait for the next burst of traffic from the logger, this normally occurs every minute
+  BytesRead = _read(SerialFd, ScratchBuf, sizeof(ScratchBuf));
+
+  if (BytesRead>0)
   {
     ptime WaitIdle(second_clock::local_time());
     auto Elapsed = WaitIdle - SyncStart;
@@ -278,24 +357,25 @@ static bool SyncWithLogger(const char *Device)
       std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
       std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl;
     }
+    DecodeAndRespondToSlave(ScratchBuf, BytesRead, SlaveId, SerialFd);
 
     // wait for ~12s of inactivity
     CTimeouts.ReadTotalTimeoutConstant = 12 * 1000;
     if (!SetCommTimeouts(hComm, &CTimeouts))
     {
       printf("Failed to set comm timeouts: %d\n", GetLastError());
-      CloseHandle(hComm);
+      _close(SerialFd);
       return false;
     }
 
     // sit in loop waiting for the bus to become inactive again
     while (!BusIdle)
     {
-      if (ReadFile(hComm, ScratchBuf, sizeof(ScratchBuf), &BytesRead, NULL))
-      {
-        if (!BytesRead)
-          BusIdle = true;
-      }
+      BytesRead = _read(SerialFd, ScratchBuf, sizeof(ScratchBuf));
+      if (!BytesRead)
+        BusIdle = true;
+      else if ( BytesRead > 0 )
+        DecodeAndRespondToSlave(ScratchBuf, BytesRead, SlaveId, SerialFd);
       else
       {
         printf("Error on read: %d\n", GetLastError());
@@ -311,7 +391,7 @@ static bool SyncWithLogger(const char *Device)
       std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
     }
   }
-  else if ( ReadStatus )
+  else if ( !BytesRead )
   {
     if (Verbose)
       printf("Timed out waiting for traffic - going ahead anyway...\n");
@@ -321,14 +401,14 @@ static bool SyncWithLogger(const char *Device)
   {
     printf("Error on read: %d\n", GetLastError());
   }
-  CloseHandle(hComm);
+  _close(SerialFd);
   return BusIdle;
 }
 
 #else
 // Sync with the next transfer performed by the datalogger & wait for it to finish
 // Linux version
-static bool SyncWithLogger(const char *Device)
+static bool SyncWithLogger(const char *Device, uint8_t SlaveId)
 {
   using namespace boost::posix_time;
   int Fd;
@@ -339,13 +419,38 @@ static bool SyncWithLogger(const char *Device)
   uint8_t ScratchBuf[256] ;
   ptime SyncStart(second_clock::local_time()) ;
   const uint32_t SyncTimeout = 80u ;
-  
-  Fd = open(Device, O_RDONLY);
+  struct termios Termios ;
+  const uint32_t ReadInputRegReqSize = 8 ;
+
+  Fd = open(Device, O_RDWR);
   if (Fd < 0)
   {
     perror("Failed to open input");
     return false;
   }
+
+  if ( tcgetattr(Fd,&Termios) < 0 )
+  {
+    perror("Failed to get terminal settings\n") ;
+    close(Fd);
+    return false ;
+  }
+  // set the minimum block size for a 'read' call which equates to the
+  // size of a single read input registers request
+  Termios.c_cc[VMIN] = ReadInputRegReqSize ;
+  // set the timeout interval before returning - 200ms which is about
+  // the worst case between logger requests
+  // 
+  // This *should* ensure every read call gives us a single Modbus request
+  // and possibly the response although we don't really care about those
+  Termios.c_cc[VTIME] = 2 ;
+  if ( tcsetattr(Fd,TCSANOW,&Termios) < 0 )
+  {
+    perror("Failed to set terminal settings\n") ;
+    close(Fd);
+    return false ;
+  }
+
   usleep(10000);
   tcflush(Fd,TCIOFLUSH);
 
@@ -403,11 +508,15 @@ static bool SyncWithLogger(const char *Device)
   while (!BusIdle)
   {
     // dump any pending data
-    if (read(Fd, ScratchBuf, sizeof(ScratchBuf)) < 0)
+    Rc = read(Fd, ScratchBuf, sizeof(ScratchBuf));
+
+    if (Rc < 0)
     {
       perror("read");
       break;
     }
+    else if ( Rc > 0 )
+      DecodeAndRespondToSlave(ScratchBuf, Rc, SlaveId, Fd);
 
     // wait for ~12s of inactivity
     TimeOut.tv_sec = 12;
@@ -599,7 +708,7 @@ int main(int argc, char *argv[])
   printf( "Starting poll\n") ;
 
   // sync to the next access performed by the data logger
-  while (SyncWithLogger(argv[1]))
+  while (SyncWithLogger(argv[1],SlaveId))
   {
     // should have 50s worth of free time, which allows for 3 requests at 20s intervals
     for (uint32_t i = 0; i < RequestsPerCycle; i++)
