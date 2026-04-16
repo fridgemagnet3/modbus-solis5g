@@ -155,7 +155,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
 
 // decode Modbus request and if not intended for our slave, respond with something
 // that will (hopefully) persuade the logger to stop querying it
-static uint8_t DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t SlaveId, int SerialFd)
+static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t SlaveId, int SerialFd)
 {
   const uint32_t MinMsgLen = 8;
   uint8_t ReqSlave;
