@@ -28,8 +28,9 @@ typedef int SOCKET;
 #include <wiringPi.h>
 
 // define GPIOs for RS485 control
-#define RS485_RE 23
-#define RS485_DE 24
+#define RS485_RE 4
+// only define one if RE & DE are tied together
+//#define RS485_DE 24
 #endif
 
 //
@@ -223,8 +224,14 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
 
 #ifdef RPI
   // disable receiver, enable transmitter
+ #ifdef RS485_RE
   digitalWrite(RS485_RE,HIGH);
+ #endif
+ #ifdef RS485_DE
   digitalWrite(RS485_DE,HIGH);
+#endif
+  // delay to allow other end to turn on it's receivers
+  usleep(10*1000) ;
 #endif
 
   if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
@@ -236,8 +243,12 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   // a delay may/may not be required here depending on how reliable 'tcdrain' actually is
   usleep(30*1000) ;
   // restore default receive functionality
+#ifdef RS485_RE
   digitalWrite(RS485_RE,LOW);
+#endif
+#ifdef RS485_DE
   digitalWrite(RS485_DE,LOW);
+#endif
 #endif
 
   return ReqSlave;
@@ -730,12 +741,20 @@ int main(int argc, char *argv[])
   
 #ifdef RPI
   // Use BCM addressing for GPIO
+#ifdef PI_MODEL_5 // used as a sense check for older versions of the library
   wiringPiSetupPinType(WPI_PIN_BCM) ;
+#else
+  wiringPiSetupGpio() ;
+#endif
+  // configure the GPIOs and set for receive only
+#ifdef RS485_RE
   pinMode(RS485_RE,OUTPUT) ;
-  pinMode(RS485_DE,OUTPUT) ;
-  // enable receiver, disable transmitter
   digitalWrite(RS485_RE,LOW);
+#endif
+#ifdef RS485_DE
+  pinMode(RS485_DE,OUTPUT) ;
   digitalWrite(RS485_DE,LOW);
+#endif
 #endif
   
   printf( "Starting poll\n") ;

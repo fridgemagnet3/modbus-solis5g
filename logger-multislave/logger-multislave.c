@@ -80,6 +80,9 @@ static void TransactSlave(modbus_t *Ctx)
     }
     else
       printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+
+    // allow time for the transceivers to switch before sending next request
+    Sleep(200) ;
   }
 }
 
