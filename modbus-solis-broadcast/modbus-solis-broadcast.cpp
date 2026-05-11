@@ -230,9 +230,9 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
  #ifdef RS485_DE
   digitalWrite(RS485_DE,HIGH);
 #endif
+#endif
   // delay to allow other end to turn on it's receivers
   usleep(10*1000) ;
-#endif
 
   if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
     printf("Error on serial write\n") ;
