@@ -163,10 +163,28 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   uint8_t FCodeReadInput = 4;
   uint16_t Crc;
   uint16_t Register;
+  uint32_t MsgStart = 0 ;
+
+  // discard any null bytes at the start of the message    
+  while(BufSz)
+  {
+    if ( !Buffer[MsgStart] )
+    {
+      BufSz-- ;
+      MsgStart++ ;
+    }
+    else
+      break ;
+  }
 
   if ( Verbose )
-    printf("DecodeAndRespondToSlave - size %u\n",BufSz);
-
+  {
+    printf("DecodeAndRespondToSlave - size %u\nMsg: ",BufSz);
+    for(uint32_t i=0 ; i < BufSz ; i++ )
+      printf( "%02x ",Buffer[i]) ;
+    printf("\n") ;
+  }
+  
   // messages we're expecting should all be single register read requests, 8 bytes long
   if (BufSz < MinMsgLen)
   {
@@ -175,7 +193,7 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
     return -1;
   }
   // check slave not us
-  ReqSlave = Buffer[0];
+  ReqSlave = Buffer[MsgStart];
   if (ReqSlave == SlaveId)
   {
     if (Verbose)
@@ -184,7 +202,7 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   }
 
   // check this is a read register request
-  if (Buffer[1] != FCodeReadInput)
+  if (Buffer[MsgStart+1] != FCodeReadInput)
   {
     printf("Not a read input registers function, ignoring\n");
     return -1;
@@ -192,9 +210,9 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
 
   // compute then verify the CRC
   auto ModBusCrc = boost::crc_optimal<16, 0x8005, 0xFFFF, 0, true, true> {};
-  ModBusCrc.process_bytes(Buffer, MinMsgLen - sizeof(uint16_t));
+  ModBusCrc.process_bytes(&Buffer[MsgStart], MinMsgLen - sizeof(uint16_t));
 
-  Crc = (Buffer[7] << 8) + Buffer[6];
+  Crc = (Buffer[MsgStart+7] << 8) + Buffer[MsgStart+6];
   if (ModBusCrc.checksum() != Crc)
   {
     if (Verbose)
@@ -203,7 +221,7 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   }
 
   // extract the register
-  Register = (Buffer[2] << 8) + Buffer[3];
+  Register = (Buffer[MsgStart+2] << 8) + Buffer[MsgStart+3];
 
   if (Verbose)
     printf("Message for slave: %u, register: %u\n", ReqSlave, Register);
@@ -471,13 +489,16 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId)
   }
   // set the minimum block size for a 'read' call which equates to the
   // size of a single read input registers request
-  Termios.c_cc[VMIN] = ReadInputRegReqSize ;
+  // 
+  // the additional '2' allows for stray null bytes I get in the serial
+  // stream, if you don't see that, then this can be removed
+  Termios.c_cc[VMIN] = ReadInputRegReqSize + 2;
   // set the timeout interval before returning - 200ms which is about
   // the worst case between logger requests
   // 
   // This *should* ensure every read call gives us a single Modbus request
   // and possibly the response although we don't really care about those
-  Termios.c_cc[VTIME] = 2 ;
+  Termios.c_cc[VTIME] = 1 ;
   if ( tcsetattr(Fd,TCSANOW,&Termios) < 0 )
   {
     perror("Failed to set terminal settings\n") ;
