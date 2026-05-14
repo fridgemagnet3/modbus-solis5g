@@ -16,7 +16,7 @@ ha_battery_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kW",
         "state_class": "measurement",
-        "expire_after": 600
+        "expire_after": 900
 }'''
 
 ha_battery_capacity_discover = '''
@@ -26,7 +26,7 @@ ha_battery_capacity_discover = '''
 	"device_class": "battery",
 	"platform": "sensor",
 	"unit_of_measurement": "%",
-	"expire_after": 600
+	"expire_after": 900
 }
 '''
 
@@ -39,7 +39,7 @@ ha_etoday_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kWh",
         "state_class": "total_increasing",
-        "expire_after": 600,
+        "expire_after": 900,
         "unique_id": "solar_etoday"
 }
 '''
@@ -53,7 +53,7 @@ ha_etotal_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "MWh",
         "state_class": "total",
-        "expire_after": 600,
+        "expire_after": 900,
         "unique_id": "solar_etotal"
 }
 '''
@@ -68,7 +68,7 @@ ha_familyload_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kW",
         "state_class": "measurement",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -81,7 +81,7 @@ ha_pac_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kW",
         "state_class": "measurement",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -94,7 +94,7 @@ ha_psum_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kW",
         "state_class": "measurement",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -107,7 +107,7 @@ ha_battery_charge_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kWh",
         "state_class": "total_increasing",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -120,7 +120,7 @@ ha_battery_discharge_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kWh",
         "state_class": "total_increasing",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -133,7 +133,7 @@ ha_grid_purchase_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kWh",
         "state_class": "total_increasing",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -146,7 +146,7 @@ ha_grid_sell_discover = '''
         "platform": "sensor",
         "unit_of_measurement": "kWh",
         "state_class": "total_increasing",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
