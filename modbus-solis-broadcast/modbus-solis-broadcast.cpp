@@ -57,21 +57,20 @@ static const uint32_t LoggerCycleTime = 300u; // 5 minutes
 static bool Verbose = false;
 
 // read the required registers from modbus
-static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, uint8_t Slave = 1)
+static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, 
+                                      uint32_t &Elapsed, uint8_t Slave = 1)
 {
   using namespace boost::posix_time;
   modbus_t *Ctx = modbus_new_rtu(Device,9600,'N',8,1) ;
   uint16_t RegBank[16];
   int Rc = 0 ;
   bool Ret = false;
+  ptime RequestStart(second_clock::local_time());
 
   if (Verbose)
-  {
-    ptime RequestTime(second_clock::local_time());
-
-    std::cout << std::endl << "Issuing request at " << to_simple_string(RequestTime) << "..." << std::endl;
-  }
-
+    std::cout << std::endl << "Issuing request at " << to_simple_string(RequestStart) << "..." << std::endl;
+  Elapsed = 0u ;
+  
   memset(ModbusSolisRegisters,0,sizeof(ModbusSolisRegister_t)) ;
   
   if (!Ctx)
@@ -153,6 +152,11 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
 
   modbus_close(Ctx);
   modbus_free(Ctx);
+
+  ptime RequestEnd(second_clock::local_time());
+  time_duration ElapsedTime = RequestEnd - RequestStart;
+  Elapsed = ElapsedTime.total_seconds();
+  
   return Ret;
 }
 
@@ -412,6 +416,8 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapse
       std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
       std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl;
     }
+    SyncStart = second_clock::local_time() ;
+
     DecodeAndRespondToSlave(ScratchBuf, BytesRead, SlaveId, SerialFd);
 
     // wait for ~8s of inactivity
@@ -546,6 +552,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
     else  // data is on the bus, that's what we're waiting for
     {
       BusIdle = false;
+      SyncStart = second_clock::local_time() ;
     }
   }
 
@@ -795,7 +802,7 @@ int main(int argc, char *argv[])
       if (Verbose)
         printf("Time to next poll: %u\n", TimeToNextPoll);
 
-      if (ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, SlaveId))
+      if (ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, Elapsed, SlaveId))
       {
         if (Verbose)
         {
@@ -829,8 +836,8 @@ int main(int argc, char *argv[])
       }
 
       // update how much time we have left till the next poll
-      if (TimeToNextPoll > PollDelay)
-        TimeToNextPoll -= PollDelay;
+      if (TimeToNextPoll > (PollDelay+Elapsed))
+        TimeToNextPoll -= (PollDelay+Elapsed);
       else
         TimeToNextPoll = 0u; 
 
