@@ -552,7 +552,6 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
     else  // data is on the bus, that's what we're waiting for
     {
       BusIdle = false;
-      SyncStart = second_clock::local_time() ;
     }
   }
 
@@ -565,6 +564,8 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
     std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
     std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl ;
   }
+
+  SyncStart = second_clock::local_time() ;
 
   // sit in loop waiting for the bus to become inactive again
   while (!BusIdle)
@@ -707,7 +708,7 @@ int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
   uint8_t SlaveId = 1;
-  const uint32_t PollDelay = 20;
+  const uint32_t PollDelay = 18;
   uint32_t Elapsed;
   char *jSon;
   SOCKET sFd ;
@@ -837,7 +838,12 @@ int main(int argc, char *argv[])
 
       // update how much time we have left till the next poll
       if (TimeToNextPoll > (PollDelay+Elapsed))
+      {
         TimeToNextPoll -= (PollDelay+Elapsed);
+        // don't go down to the wire
+        if ( TimeToNextPoll < 5)
+          TimeToNextPoll = 0u;
+      }
       else
         TimeToNextPoll = 0u; 
 
