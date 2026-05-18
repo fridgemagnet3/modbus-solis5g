@@ -441,7 +441,7 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
       // you could get a 32-bit register spanning two batches - for the ones I'm interested in
       // don't think that happens but make them static anyway to be on the safe side
       static int32_t ActivePower, BattPower, GridPower, MeterTotalActivePower ;
-      static uint32_t CurrentGeneration ;
+      static uint32_t CurrentGeneration, TotalPower ;
       
       switch (Address)
       {
@@ -473,9 +473,18 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
         printf("%u: System Time Second: %u\n", Address, *It);
         break;
 
+      case 33029:
+        TotalPower = ((*It) << 16) ;
+        break ;
+        
+      case 33030:
+			TotalPower+=*It ;
+			printf("%u:%u: Total power generation: %u kWh\n", Address-1, Address, TotalPower );
+			break ;
+       
       case 33035:
         // expressed in 0.1kWh intervals
-        printf("%u:Inverter power generation today: %f kWh\n", Address, (float)(*It)*0.1) ;
+        printf("%u: Inverter power generation today: %f kWh\n", Address, (float)(*It)*0.1) ;
         break ;
 
 		case 33057:
@@ -540,9 +549,17 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
       case 33163 :
         printf("%u: Battery charge today: %f kWh\n", Address, (float)(*It)*0.1) ; 
         break ;
+
+      case 33167 :
+        printf("%u: Battery discharge today: %f kWh\n", Address, (float)(*It)*0.1) ; 
+        break ;
       
       case 33171 :
-        printf("%u: Grid power imported today: %u kWh\n", Address, (*It)/10) ; 
+        printf("%u: Grid power imported today: %f kWh\n", Address, (float)(*It)*0.1) ; 
+        break ;
+
+      case 33175 :
+        printf("%u: Grid power exported today: %f kWh\n", Address, (float)(*It)*0.1) ; 
         break ;
       
       case 33263 :

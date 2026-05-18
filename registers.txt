@@ -34,26 +34,22 @@ Register accesses: 33135-33150
                    33057-33058
                    33263-33264
             
-Normal poll cycle: 1 min (register reads every 5 min)
+For HA energy dashboard:
 
-EXCEPT for odd intervals (~1 per day?) where its like some sort of reset occurs causing
-an access to occur at any time, then have a cycle (or 2) of differing timings followed by 
-6 cycles where two of the register write cycles are occurring at 01:12 minute followed by
-00:44 second intervals.
+batteryTodayChargeEnergy
+33163 - Battery charge today, kWh
 
-Now I've made the app more robust to decode errors, a longer run between 08/11 thru to 11/11
-shows this behaviour occurring 24hrs apart (in this instance ~03:15am). 
-On 09/11 the normal register read cycle is interrupted after the read at 33075, with an 11s 
-delay followed by read of 35000 after which the normal register reads restart.
-On 10/11 it occurs shortly after a register write, after which the normal register reads restart.
-On 11/11 the normal register read cycle is interrupted after the read at 33104, with an 11s
-delay followed by read of 35000 after which the normal register reads restart.
+batteryTodayDischargeEnergy
+33167 - Battery discharge capacity, kWh
 
-Note that in trace from 05/11, this was happening at 04:13am whilst on 04/11, it was at 11:28am. So
-can shift around *for some reason*.
+gridPurchasedTodayEnergy
+33171 - Grid power imported today, kWh
 
-Key thing though is it's not (as I thought), the write which kicks this off but an unexpected read of
-35000 which can occur seemingly any time. Following that you then get the differently timed (and content)
-writes.
+gridSellTodayEnergy
+33175 - Power exported from grid today, kWh
 
-TODO: Determine the behaviour when the wifi adaptor is first connected.
+eTotal - solar generation total
+33029-33030 Inverter total power generation, kWh
+
+Register accesses: 33029
+                   33163-33175
