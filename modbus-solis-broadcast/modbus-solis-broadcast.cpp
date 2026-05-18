@@ -10,10 +10,10 @@
 #include <arpa/inet.h>
 typedef int SOCKET;
 #define closesocket close
+#define Sleep(a) usleep(a*1000)
 #else
 #include <io.h>
 #pragma warning(disable : 4996)
-#define sleep(x) Sleep(x*1000)
 #define O_NONBLOCK 0x80000
 #endif
 #include <errno.h>
@@ -31,6 +31,35 @@ typedef int SOCKET;
 #define RS485_RE 4
 // only define one if RE & DE are tied together
 //#define RS485_DE 24
+
+// RTS handler used to control the RS485 direction GPIO
+static void RTSHandler(modbus_t *Ctx, int On)
+{
+  if (On)
+  {
+    // disable receiver, enable transmitter
+#ifdef RS485_RE
+    digitalWrite(RS485_RE, HIGH);
+#endif
+#ifdef RS485_DE
+    digitalWrite(RS485_DE, HIGH);
+#endif
+    // allow time for the other end to switch
+    Sleep(10);
+  }
+  else
+  {
+    // a delay may/may not be required here
+    Sleep(30);
+    // restore default receive functionality
+#ifdef RS485_RE
+    digitalWrite(RS485_RE, LOW);
+#endif
+#ifdef RS485_DE
+    digitalWrite(RS485_DE, LOW);
+#endif
+  }
+}
 #endif
 
 //
@@ -65,7 +94,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   uint16_t RegBank[16];
   int Rc = 0 ;
   bool Ret = false;
-  ptime RequestStart(second_clock::local_time());
+  ptime RequestStart(microsec_clock::local_time());
 
   if (Verbose)
     std::cout << std::endl << "Issuing request at " << to_simple_string(RequestStart) << "..." << std::endl;
@@ -91,10 +120,28 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
     modbus_free(Ctx);
     return false;
   }
+
 #ifdef WIN32
   // for testing
   modbus_set_response_timeout(Ctx, 15, 0);
   modbus_set_debug(Ctx, 1);
+#endif
+
+#ifdef RPI
+  // enable RS485 mode
+  if (modbus_rtu_set_rts(Ctx, MODBUS_RTU_RTS_UP) < 0)
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return false;
+  }
+  // set the callback used to control the RS485 transceivers
+  if (modbus_rtu_set_custom_rts(Ctx, RTSHandler) < 0)
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return false;
+  }
 #endif
 
   // most of what we need is in a single grouping
@@ -153,9 +200,9 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   modbus_close(Ctx);
   modbus_free(Ctx);
 
-  ptime RequestEnd(second_clock::local_time());
+  ptime RequestEnd(microsec_clock::local_time());
   time_duration ElapsedTime = RequestEnd - RequestStart;
-  Elapsed = ElapsedTime.total_seconds();
+  Elapsed = ElapsedTime.total_milliseconds();
   
   return Ret;
 }
@@ -247,34 +294,22 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   ResponseBuf[4] = ModBusCrc.checksum() >> 8 ;
 
 #ifdef RPI
-  // disable receiver, enable transmitter
- #ifdef RS485_RE
-  digitalWrite(RS485_RE,HIGH);
- #endif
- #ifdef RS485_DE
-  digitalWrite(RS485_DE,HIGH);
-#endif
-#endif
-#ifndef WIN32
-  // delay to allow other end to turn on it's receivers
-  usleep(10*1000) ;
+  RTSHandler(nullptr,1) ;
+#else
+  Sleep(10);
 #endif
 
   if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
     printf("Error on serial write\n") ;
 
-#ifdef RPI
   // wait for serial data to drain
-  tcdrain(SerialFd) ;
+  tcdrain(SerialFd);
+
+#ifdef RPI
+  RTSHandler(nullptr,0) ;
+#else
   // a delay may/may not be required here depending on how reliable 'tcdrain' actually is
-  usleep(30*1000) ;
-  // restore default receive functionality
-#ifdef RS485_RE
-  digitalWrite(RS485_RE,LOW);
-#endif
-#ifdef RS485_DE
-  digitalWrite(RS485_DE,LOW);
-#endif
+  Sleep(30);
 #endif
 
   return ReqSlave;
@@ -369,7 +404,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapse
   COMMTIMEOUTS CTimeouts;
   bool BusIdle = false;
   uint8_t ScratchBuf[256];
-  ptime SyncStart(second_clock::local_time());
+  ptime SyncStart(microsec_clock::local_time());
   int BytesRead;
   int SerialFd;
 
@@ -408,7 +443,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapse
 
   if (BytesRead>0)
   {
-    ptime WaitIdle(second_clock::local_time());
+    ptime WaitIdle(microsec_clock::local_time());
     auto ElapsedTime = WaitIdle - SyncStart;
 
     if (Verbose)
@@ -416,7 +451,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapse
       std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
       std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl;
     }
-    SyncStart = second_clock::local_time() ;
+    SyncStart = microsec_clock::local_time();
 
     DecodeAndRespondToSlave(ScratchBuf, BytesRead, SlaveId, SerialFd);
 
@@ -456,12 +491,12 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapse
   }
   _close(SerialFd);
 
-  ptime SyncEnd(second_clock::local_time());
+  ptime SyncEnd(microsec_clock::local_time());
   time_duration ElapsedTime = SyncEnd - SyncStart;
-  Elapsed = ElapsedTime.total_seconds();
+  Elapsed = ElapsedTime.total_milliseconds();
 
   if (Verbose)
-    std::cout << "Elapsed: " << Elapsed << "s" << std::endl;
+    std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
 
   return BusIdle;
 }
@@ -478,7 +513,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
   bool BusIdle = true;
   int Rc ;
   uint8_t ScratchBuf[256] ;
-  ptime SyncStart(second_clock::local_time()) ;
+  ptime SyncStart(microsec_clock::local_time()) ;
   struct termios Termios ;
   const uint32_t ReadInputRegReqSize = 8 ;
   static bool FirstRun = true ;
@@ -552,20 +587,19 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
     else  // data is on the bus, that's what we're waiting for
     {
       BusIdle = false;
+
+      if ( Verbose )
+      {
+        ptime WaitIdle(microsec_clock::local_time()) ;
+        auto ElapsedTime = WaitIdle - SyncStart;
+	    
+        std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
+        std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl ;
+      }
+	
+      SyncStart = microsec_clock::local_time() ;
     }
   }
-
-
-  if ( Verbose )
-  {
-    ptime WaitIdle(second_clock::local_time()) ;
-    auto ElapsedTime = WaitIdle - SyncStart;
-    
-    std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
-    std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl ;
-  }
-
-  SyncStart = second_clock::local_time() ;
 
   // sit in loop waiting for the bus to become inactive again
   while (!BusIdle)
@@ -594,12 +628,12 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
     }
   }
 
-  ptime SyncEnd(second_clock::local_time());
+  ptime SyncEnd(microsec_clock::local_time());
   time_duration ElapsedTime = SyncEnd - SyncStart;
-  Elapsed = ElapsedTime.total_seconds();
+  Elapsed = ElapsedTime.total_milliseconds();
 
   if (Verbose)
-    std::cout << "Elapsed: " << Elapsed << "s" << std::endl;
+    std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
 
   close(Fd);
 
@@ -708,7 +742,9 @@ int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
   uint8_t SlaveId = 1;
-  const uint32_t PollDelay = 18;
+  const uint32_t PollDelay = 18 * 1000u;  // 18 seconds
+  const uint32_t LoggerCycleTimeMilliseconds = LoggerCycleTime * 1000u;
+  const uint32_t PollThreshold = 5000u;  // 5 seconds
   uint32_t Elapsed;
   char *jSon;
   SOCKET sFd ;
@@ -793,15 +829,15 @@ int main(int argc, char *argv[])
     uint32_t TimeToNextPoll;
 
     // work out how much time we have till the next logger poll is due
-    if (Elapsed < LoggerCycleTime)
-      TimeToNextPoll = LoggerCycleTime - Elapsed;
+    if (Elapsed < LoggerCycleTimeMilliseconds)
+      TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
     else
       TimeToNextPoll = 1u;  // if we didn't see any logger traffic, do at least one transaction
 
     while (TimeToNextPoll)
     {
       if (Verbose)
-        printf("Time to next poll: %u\n", TimeToNextPoll);
+        printf("Time to next poll: %u seconds\n", TimeToNextPoll/1000u);
 
       if (ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, Elapsed, SlaveId))
       {
@@ -841,7 +877,7 @@ int main(int argc, char *argv[])
       {
         TimeToNextPoll -= (PollDelay+Elapsed);
         // don't go down to the wire
-        if ( TimeToNextPoll < 5)
+        if (PollThreshold < PollThreshold)
           TimeToNextPoll = 0u;
       }
       else
@@ -865,7 +901,7 @@ int main(int argc, char *argv[])
           break;
         }
 
-        sleep(PollDelay);
+        Sleep(PollDelay);
 
         // poll for any data arrived in the meantime, under normal circumstances, it shoudn't
         // EXCEPT when the logger performs it's daily reset...
