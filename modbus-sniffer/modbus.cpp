@@ -589,11 +589,12 @@ int main(int argc, char *argv[])
   ptime Now(second_clock::local_time()) ;
   bool IsLive = false ;
   bool DecodeError = false ;
+  bool AllSlavesRespond = false ;
   
   // the slave is needed to allow us to try and sync up with the incoming data
   if ( argc < 2 )
   {
-    printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1]\n");
+    printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1] [all-slaves-respond=0]\n");
     return -1 ;
   }
   if ( !strcmp(argv[1],"-") )
@@ -682,6 +683,14 @@ int main(int argc, char *argv[])
   {
     RestrictToSlave = false;
     std::cout << "Not restricting decode to single slave" << std::endl;
+    
+    // indicate if should expect a response back from all the slaves
+    // useful if running a broadcast app in tandem since it will simulate this
+    if ( argc > 7 && strtoul(argv[7], NULL, 0))
+    {
+      AllSlavesRespond = true ;
+      std::cout << "Will expect a response for all slaves" << std::endl;
+    }
   }
 
   // start processing traffic
@@ -690,8 +699,8 @@ int main(int argc, char *argv[])
      uint8_t MsgSlave = Slave ;
       
   	 DecodeError = !ProcessRequest(Fd, MsgSlave, Function, Valid, ResponseData) ;
-     // if decoding for multiple slave, we only expect a response back from the one specified on the command line
-  	 if ( !DecodeError && (MsgSlave == Slave))
+
+  	 if ( !DecodeError && (AllSlavesRespond || (MsgSlave == Slave)))
   	 {
     	  DecodeError = !ProcessResponse(Fd, Slave, Function,Valid,ResponseData,Verbose) ;
     	  if ( !DecodeError && Valid )
