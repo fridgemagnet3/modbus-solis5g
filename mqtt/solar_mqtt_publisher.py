@@ -51,7 +51,7 @@ ha_etotal_discover = '''
         "device_class": "energy",
         "suggested_display_precision": 1,
         "platform": "sensor",
-        "unit_of_measurement": "MWh",
+        "unit_of_measurement": "kWh",
         "state_class": "total",
         "expire_after": 900,
         "unique_id": "solar_etotal"
@@ -160,6 +160,32 @@ ha_logger_fails_discover = '''
 }
 '''
 
+def convert_units(value,actual_units,required_units):
+    if actual_units==required_units:
+        return str(value)
+
+    # convert to W - lowest common denominator
+    if 'kW' in actual_units:
+        value = float(value)*1000
+    elif 'MW' in actual_units:
+        value = float(value)*1000*1000
+    elif 'GW' in actual_units:
+        value = float(value)*1000*1000*1000
+    else:
+        value = float(value) # assumed just 'W', unlikely
+        
+    # convert to desired units
+    if 'kW' in required_units:
+        value = str(round(value/1000,1))
+    elif 'MW' in required_units:
+        value = str(round(value/1000/1000,2))
+    elif 'GW' in required_units:
+        value = str(round(value/1000/1000/1000,3))
+    else:
+        value = str(value)
+    
+    return value
+    
 def on_mqtt_connect(client, userdata, flags, rc):
     print("broker connect: %d" %(rc))
     if rc!=0:
@@ -208,19 +234,27 @@ while True:
 
         # these nodes are currently only in the packet derived from the cloud data
         if 'batteryTodayChargeEnergy' in json_solar_data['data']:
-            batteryTodayChargeEnergy = str(json_solar_data['data']['batteryTodayChargeEnergy'])
+            batteryTodayChargeEnergy = convert_units(json_solar_data['data']['batteryTodayChargeEnergy'],
+                                                     json_solar_data['data']['batteryTodayChargeEnergyStr'],
+                                                                             "kWh")
             mqttc.publish("solar/batteryTodayChargeEnergy",batteryTodayChargeEnergy)
         if 'batteryTodayDischargeEnergy' in json_solar_data['data']:
-            batteryTodayDischargeEnergy = str(json_solar_data['data']['batteryTodayDischargeEnergy'])
+            batteryTodayDischargeEnergy = convert_units(json_solar_data['data']['batteryTodayDischargeEnergy'],
+                                                        json_solar_data['data']['batteryTodayDischargeEnergyStr'],
+                                                        "kWh")
             mqttc.publish("solar/batteryTodayDischargeEnergy",batteryTodayDischargeEnergy)
         if 'gridPurchasedTodayEnergy' in json_solar_data['data']:
-            gridPurchasedTodayEnergy = str(json_solar_data['data']['gridPurchasedTodayEnergy'])
+            gridPurchasedTodayEnergy = convert_units(json_solar_data['data']['gridPurchasedTodayEnergy'],
+                                                     json_solar_data['data']['gridPurchasedTodayEnergyStr'],
+                                                     "kWh")
             mqttc.publish("solar/gridPurchasedTodayEnergy",gridPurchasedTodayEnergy)
         if 'gridSellTodayEnergy' in json_solar_data['data']:
-            gridSellTodayEnergy = str(json_solar_data['data']['gridSellTodayEnergy'])
+            gridSellTodayEnergy = convert_units(json_solar_data['data']['gridSellTodayEnergy'],
+                                                json_solar_data['data']['gridSellTodayEnergyStr'],
+                                                "kWh")
             mqttc.publish("solar/gridSellTodayEnergy",gridSellTodayEnergy)
         if 'eTotal' in json_solar_data['data']:
-            eTotal = str(json_solar_data['data']['eTotal'])
+            eTotal = convert_units(json_solar_data['data']['eTotal'],json_solar_data['data']['eTotalStr'],"kWh")
             mqttc.publish("solar/etotal",eTotal)
         # this is ONLY in the data published locally and provides a counter
         # of how many times the modbus app detects that the logger has stopped issuing requests
@@ -236,26 +270,29 @@ while True:
 
             # battery charge remaining (in %)
             batteryCapacitySoc = str(int(json_solar_data['data']['batteryCapacitySoc']))
-            # current battery power
-            batteryPower = json_solar_data['data']['batteryPower']
-            batteryPowerStr = json_solar_data['data']['batteryPowerStr']
-            # current power from solar
-            pac = json_solar_data['data']['pac']
-            pacStr = json_solar_data['data']['pacStr']
-            # power in/out from grid
-            psum = json_solar_data['data']['psum']
-            psumStr = json_solar_data['data']['psumStr']
-            # current consumption
-            familyLoadPower = str(round(json_solar_data['data']['familyLoadPower'],1))
-            familyLoadPowerStr = json_solar_data['data']['familyLoadPowerStr']
-            # total generation today
-            etoday = str(round(json_solar_data['data']['eToday'],1))
-            etodayStr = json_solar_data['data']['eTodayStr']
 
+            # current battery power
+            # flip the battery power to align with HA for grid power
+            batteryPower = convert_units(json_solar_data['data']['batteryPower']*-1,
+                                         json_solar_data['data']['batteryPowerStr'],
+                                         "kW")
+            # current power from solar
+            pac = convert_units(json_solar_data['data']['pac'],
+                                json_solar_data['data']['pacStr'],
+                                "kW")
+            # power in/out from grid
             # flip the psum to align with HA for grid power
-            psum = str(round(psum*-1.0,1))
-            batteryPower = str(round(batteryPower*-1.0,1))
-            pac = str(round(pac,2))
+            psum = convert_units(json_solar_data['data']['psum']*-1,
+                                 json_solar_data['data']['psumStr'],
+                                 "kW")
+            # current consumption
+            familyLoadPower = convert_units(json_solar_data['data']['familyLoadPower'],
+                                            json_solar_data['data']['familyLoadPowerStr'],
+                                            "kW")
+            # total generation today
+            etoday = convert_units(json_solar_data['data']['eToday'],
+                                   json_solar_data['data']['eTodayStr'],
+                                   "kWh")
 
             # publish
             mqttc.publish("solar/batteryCapacitySoc",batteryCapacitySoc)
