@@ -517,6 +517,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
   struct termios Termios ;
   const uint32_t ReadInputRegReqSize = 8 ;
   static bool FirstRun = true ;
+  bool Slave10Tx = false ;
   
   Fd = open(Device, O_RDWR);
   if (Fd < 0)
@@ -613,10 +614,29 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
       break;
     }
     else if ( Rc > 0 )
-      DecodeAndRespondToSlave(ScratchBuf, Rc, SlaveId, Fd);
-
-    // wait for ~8s of inactivity
-    TimeOut.tv_sec = 8;
+    {
+      int ReqSlave = DecodeAndRespondToSlave(ScratchBuf, Rc, SlaveId, Fd);
+      if ( ReqSlave == 10 )
+        Slave10Tx = true ;
+      else if ( ReqSlave == 2 ) // if there are multiple polls this cycle, make sure we reset the Tx flag
+        Slave10Tx = false ;
+    } 
+    
+    // this logic is designed to (in part) handle the logger reset behaviour...
+    
+    // Under normal conditions, it will poll all 10 slaves, then go idle for
+    // the remaining 5 minute cycle. That means we just need
+    // to wait for a short idle time (8s) before starting our transactions
+    // However when it's come out of reset, it can often start further polls
+    // much sooner. Under those conditions, it also never seems to complete all 
+    // the slave polling, instead appears to bail, then restart. So we use this
+    // behaviour to determine whether to hang around for longer - ie. if we
+    // *never* see a slave 10 transaction, assume we're going through a reset 
+    // and wait for much longer for the idle condition
+    if (!Slave10Tx)
+      TimeOut.tv_sec = 30 ;
+    else
+      TimeOut.tv_sec = 8;
     TimeOut.tv_usec = 0;
     Rc = select(Fd + 1, &FdSet, NULL, NULL, &TimeOut);
     if (Rc == 0)
@@ -830,9 +850,18 @@ int main(int argc, char *argv[])
 
     // work out how much time we have till the next logger poll is due
     if (Elapsed < LoggerCycleTimeMilliseconds)
-      TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
+    {
+    	const uint32_t MinElapsed = 50*1000 ;
+    	// handle the (most likely startup) condition where we happen to 
+    	// immediately detect traffic & therefore get a much shorter than expected elapsed time
+    	if ( Elapsed < MinElapsed )
+    	  TimeToNextPoll = LoggerCycleTimeMilliseconds - MinElapsed ;
+    	else
+        TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
+    }
     else
-      TimeToNextPoll = 1u;  // if we didn't see any logger traffic, do at least one transaction
+      TimeToNextPoll = 1u;  // if we didn't see any logger traffic, or was longer than expected
+                            // just do the one transaction, then resync
 
     while (TimeToNextPoll)
     {
