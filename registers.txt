@@ -40,7 +40,7 @@ batteryTodayChargeEnergy
 33163 - Battery charge today, kWh
 
 batteryTodayDischargeEnergy
-33167 - Battery discharge capacity, kWh
+33167 - Battery discharge today, kWh
 
 gridPurchasedTodayEnergy
 33171 - Grid power imported today, kWh
@@ -51,5 +51,5 @@ gridSellTodayEnergy
 eTotal - solar generation total
 33029-33030 Inverter total power generation, kWh
 
-Register accesses: 33029
+Register accesses: 33029 (combine with 33035 read)
                    33163-33175

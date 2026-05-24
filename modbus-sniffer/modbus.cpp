@@ -441,7 +441,7 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
       // you could get a 32-bit register spanning two batches - for the ones I'm interested in
       // don't think that happens but make them static anyway to be on the safe side
       static int32_t ActivePower, BattPower, GridPower, MeterTotalActivePower ;
-      static uint32_t CurrentGeneration, TotalPower ;
+      static uint32_t CurrentGeneration, TotalPower, ElectMeterTotalActivePower ;
       
       switch (Address)
       {
@@ -478,25 +478,25 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
         break ;
         
       case 33030:
-			TotalPower+=*It ;
-			printf("%u:%u: Total power generation: %u kWh\n", Address-1, Address, TotalPower );
-			break ;
+		TotalPower+=*It ;
+		printf("%u:%u: Total power generation: %u kWh\n", Address-1, Address, TotalPower );
+		break ;
        
       case 33035:
         // expressed in 0.1kWh intervals
         printf("%u: Inverter power generation today: %f kWh\n", Address, (float)(*It)*0.1) ;
         break ;
 
-		case 33057:
+	  case 33057:
 		
-			CurrentGeneration = ((*It) << 16) ;
-			break ;
+		CurrentGeneration = ((*It) << 16) ;
+		break ;
 			
-		case 33058:
+	  case 33058:
 			
-			CurrentGeneration+=*It ;
-			printf("%u:%u: Current Generation - DC power o/p: %u W\n", Address-1, Address, CurrentGeneration );
-			break ;
+		CurrentGeneration+=*It ;
+		printf("%u:%u: Current Generation - DC power o/p: %u W\n", Address-1, Address, CurrentGeneration );
+		break ;
 			
       case 33079:
         ActivePower = ((*It) << 16) ;
@@ -511,14 +511,23 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
         printf("%u: Grid frequency: %f Hz\n", Address, (*It)*0.01) ;
         break ;
 
+      case 33126 :
+        ElectMeterTotalActivePower = ((*It) << 16) ;
+        break ;
+        
+      case 33127:
+        ElectMeterTotalActivePower+=*It ;
+        printf("%u:%u: Electricity meter total active power generation: %u Wh\n", Address-1, Address, ElectMeterTotalActivePower );
+        break ;
+        
       case 33130 :
         GridPower = ((*It) << 16) ;
         break ;
         
       case 33131 :
-			GridPower+=*It ;
-			printf("%u:%u: Grid Power, +ve export, -ve import: %d W\n",Address-1, Address, GridPower) ;
-			break ;
+		GridPower+=*It ;
+		printf("%u:%u: Grid Power, +ve export, -ve import: %d W\n",Address-1, Address, GridPower) ;
+		break ;
 			      
       case 33135 :
       

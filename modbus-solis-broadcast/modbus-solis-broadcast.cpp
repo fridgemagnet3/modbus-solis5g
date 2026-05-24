@@ -78,7 +78,12 @@ typedef struct {
   double   pac;    // generation (kW)
   double   psum;   // grid in/out (kW)
   double   familyLoadPower; // load (kW)
-  double   etoday;  // generation today (kW)
+  double   etoday;  // generation today (kWh)
+  double   batteryTodayChargeEnergy; // battery charge today (kWh)
+  double   batteryTodayDischargeEnergy;  // battery discharge today (kWh)
+  double   gridPurchasedTodayEnergy; // grid imported today (kWh)
+  double   gridSellTodayEnergy; // grid exported today (kWh)
+  uint32_t eTotal; // solar generation total
 } ModbusSolisRegister_t;
 
 static const uint32_t LoggerCycleTime = 300u; // 5 minutes
@@ -93,7 +98,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   modbus_t *Ctx = modbus_new_rtu(Device,9600,'N',8,1) ;
   uint16_t RegBank[16];
   int Rc = 0 ;
-  bool Ret = false;
+  bool Ret = true;
   ptime RequestStart(microsec_clock::local_time());
 
   if (Verbose)
@@ -159,43 +164,92 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
     // 33135 - battery charge status, 0=charge, 1=discharge
     if (RegBank[0])
       ModbusSolisRegisters->batteryPower *= -1;  // if discharging, flip the power
-    ModbusSolisRegisters->batteryPower/=1000.0 ; // convert to kW
-    ModbusSolisRegisters->familyLoadPower = (double)RegBank[12] / 1000 ; // 33147
+    ModbusSolisRegisters->batteryPower /= 1000.0; // convert to kW
+    ModbusSolisRegisters->familyLoadPower = (double)RegBank[12] / 1000; // 33147
+  }
+  else
+  {
+    printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+    Ret = false;
+  }
 
-    // three further register reads are required to get the remaining info...
+  if (Ret)
+  {
     // 33057:33058: Current Generation
-    // 33263:33264: Meter total active power
-    // 33035 Current generation today
     Rc = modbus_read_input_registers(Ctx, 33057, sizeof(uint32_t) / sizeof(uint16_t), RegBank);
     if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
     {
       uint32_t Generation = (RegBank[0] << 16) + RegBank[1];   // expressed in watts
-      ModbusSolisRegisters->pac = (double)Generation / 1000 ;  // return as kW
-
-      Rc = modbus_read_input_registers(Ctx, 33263, sizeof(int32_t) / sizeof(uint16_t), RegBank);
-      if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
-      {
-        int32_t ActivePower = MODBUS_GET_INT32_FROM_INT16(RegBank, 0);
-        ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
-
-        Rc = modbus_read_input_registers(Ctx, 33035, sizeof(uint16_t), RegBank);
-        if (Rc == sizeof(uint16_t))
-        {
-          // expressed in 0.1kWh intervals
-          ModbusSolisRegisters->etoday = (float)(RegBank[0])*0.1;
-          Ret = true;
-        }
-        else
-          printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
-      }
-      else
-        printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      ModbusSolisRegisters->pac = (double)Generation / 1000;  // return as kW
     }
     else
+    {
       printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
   }
-  else
-    printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+
+  if (Ret)
+  {
+    // 33263:33264: Meter total active power
+    Rc = modbus_read_input_registers(Ctx, 33263, sizeof(int32_t) / sizeof(uint16_t), RegBank);
+    if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
+    {
+      int32_t ActivePower = MODBUS_GET_INT32_FROM_INT16(RegBank, 0);
+      ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
+    }
+    else
+    {
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
+  }
+
+  if (Ret)
+  {
+    const int NoRegisters = 7;
+
+    // 33029-33030: Inverter total power generation
+    // 33035:       Intverter power generation today
+    Rc = modbus_read_input_registers(Ctx, 33029, NoRegisters, RegBank);
+    if (Rc == NoRegisters)
+    {
+      // expressed in kWh
+      ModbusSolisRegisters->eTotal = (RegBank[0] << 16) + RegBank[1];
+      // expressed in 0.1kWh intervals
+      ModbusSolisRegisters->etoday = (float)(RegBank[6])*0.1;
+    }
+    else
+    {
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
+  }
+
+  if (Ret)
+  {
+    const int NoRegisters = 13;
+
+    // 33163 - Battery charge today
+    // 33167 - Battery discharge capacity
+    // 33171 - Grid power imported today
+    // 33175 - Power exported from grid today
+    Rc = modbus_read_input_registers(Ctx, 33163, NoRegisters, RegBank);
+    if (Rc == NoRegisters)
+    {
+      // expressed in 0.1kWh intervals
+      ModbusSolisRegisters->batteryTodayChargeEnergy = (float)(RegBank[0])*0.1;
+      ModbusSolisRegisters->batteryTodayDischargeEnergy = (float)(RegBank[4])*0.1;
+      ModbusSolisRegisters->gridPurchasedTodayEnergy = (float)(RegBank[8])*0.1;
+      ModbusSolisRegisters->gridSellTodayEnergy = (float)(RegBank[12])*0.1;
+    }
+    else
+    {
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
+  }
+
 
   modbus_close(Ctx);
   modbus_free(Ctx);
@@ -302,8 +356,10 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
     printf("Error on serial write\n") ;
 
+#ifndef WIN32
   // wait for serial data to drain
   tcdrain(SerialFd);
+#endif
 
 #ifdef RPI
   RTSHandler(nullptr,0) ;
@@ -705,9 +761,16 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
     Node = cJSON_CreateNumber(ModbusSolisRegisters->etoday);
     if (Node)
       cJSON_AddItemToObject(SolarData, "eToday", Node);
-    Node = cJSON_CreateString("kW");
+    Node = cJSON_CreateString("kWh");
     if (Node)
       cJSON_AddItemToObject(SolarData, "eTodayStr", Node);
+    // eTotal - total solar generation
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->eTotal);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTotal", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTotalStr", Node);
 
     // generation
     Node = cJSON_CreateNumber(ModbusSolisRegisters->pac);
@@ -742,6 +805,36 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
     Node = cJSON_CreateString("kW");
     if (Node)
       cJSON_AddItemToObject(SolarData, "familyLoadPowerStr", Node);
+
+    // battery charge/discharge
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTodayChargeEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTodayChargeEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTodayChargeEnergyStr", Node);
+
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTodayDischargeEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTodayDischargeEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTodayDischargeEnergyStr", Node);
+
+    // grid today in/out
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridPurchasedTodayEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTodayEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTodayEnergyStr", Node);
+
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridSellTodayEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridSellTodayEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridSellTodayEnergyStr", Node);
   }
 
   // the outer pieces
@@ -762,7 +855,7 @@ int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
   uint8_t SlaveId = 1;
-  const uint32_t PollDelay = 18 * 1000u;  // 18 seconds
+  const uint32_t PollDelay = 16 * 1000u;  // 17 seconds
   const uint32_t LoggerCycleTimeMilliseconds = LoggerCycleTime * 1000u;
   const uint32_t PollThreshold = 5000u;  // 5 seconds
   uint32_t Elapsed;
@@ -851,17 +944,17 @@ int main(int argc, char *argv[])
     // work out how much time we have till the next logger poll is due
     if (Elapsed < LoggerCycleTimeMilliseconds)
     {
-    	const uint32_t MinElapsed = 50*1000 ;
+    	const uint32_t MinElapsed = 60*1000 ;
     	// handle the (most likely startup) condition where we happen to 
     	// immediately detect traffic & therefore get a much shorter than expected elapsed time
     	if ( Elapsed < MinElapsed )
     	  TimeToNextPoll = LoggerCycleTimeMilliseconds - MinElapsed ;
     	else
-        TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
+          TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
     }
     else
-      TimeToNextPoll = 1u;  // if we didn't see any logger traffic, or was longer than expected
-                            // just do the one transaction, then resync
+      TimeToNextPoll = 1000u;  // if we didn't see any logger traffic, or was longer than expected
+                               // just do the one transaction, then resync
 
     while (TimeToNextPoll)
     {
@@ -878,6 +971,11 @@ int main(int argc, char *argv[])
           printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
           printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
           printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
+          printf("Battery charge today: %f kW\n", ModbusSolisRegisters.batteryTodayChargeEnergy);
+          printf("Battery discharge today: %f kW\n", ModbusSolisRegisters.batteryTodayDischargeEnergy);
+          printf("Grid power imported today: %f kW\n", ModbusSolisRegisters.gridPurchasedTodayEnergy);
+          printf("Grid power exported today: %f kW\n", ModbusSolisRegisters.gridSellTodayEnergy);
+          printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
         }
 
         // generate the JSON data, aligned to the Solis API
@@ -906,7 +1004,7 @@ int main(int argc, char *argv[])
       {
         TimeToNextPoll -= (PollDelay+Elapsed);
         // don't go down to the wire
-        if (PollThreshold < PollThreshold)
+        if (TimeToNextPoll < PollThreshold)
           TimeToNextPoll = 0u;
       }
       else
