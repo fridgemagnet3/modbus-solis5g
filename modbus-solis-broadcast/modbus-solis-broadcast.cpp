@@ -90,6 +90,8 @@ static const uint32_t LoggerCycleTime = 300u; // 5 minutes
 
 static bool Verbose = false;
 
+static uint32_t LoggerFail = 0u;
+
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, 
                                       uint32_t &Elapsed, uint8_t Slave = 1)
@@ -540,6 +542,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapse
     if (Verbose)
       printf("Timed out waiting for traffic - going ahead anyway...\n");
     BusIdle = true;
+    LoggerFail++;
   }
   else
   {
@@ -633,6 +636,7 @@ static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed
     {
       if (Verbose)
         printf("Timed out waiting for traffic - going ahead anyway...\n");
+      LoggerFail++ ;
       break;
     }
     else if (Rc < 0)
@@ -845,6 +849,12 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   if (Node)
     cJSON_AddItemToObject(SolarJson, "success", Node);
 
+  // this is non-standard but provides an indication of if (and how many times)
+  // the logger has failed
+  Node = cJSON_CreateNumber(LoggerFail);
+  if (Node)
+    cJSON_AddItemToObject(SolarJson, "loggerFail", Node);
+
   // generate return string
   Ret = cJSON_Print(SolarJson);
   cJSON_Delete(SolarJson);
@@ -855,7 +865,7 @@ int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
   uint8_t SlaveId = 1;
-  const uint32_t PollDelay = 16 * 1000u;  // 17 seconds
+  const uint32_t PollDelay = 16 * 1000u;  // 16 seconds
   const uint32_t LoggerCycleTimeMilliseconds = LoggerCycleTime * 1000u;
   const uint32_t PollThreshold = 5000u;  // 5 seconds
   uint32_t Elapsed;
