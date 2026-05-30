@@ -49,8 +49,10 @@ static void RTSHandler(modbus_t *Ctx, int On)
   }
   else
   {
+    if (Ctx)
+      tcdrain(modbus_get_socket(Ctx)) ;
     // a delay may/may not be required here
-    Sleep(30);
+    Sleep(1);
     // restore default receive functionality
 #ifdef RS485_RE
     digitalWrite(RS485_RE, LOW);
@@ -132,6 +134,8 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   // for testing
   modbus_set_response_timeout(Ctx, 15, 0);
   modbus_set_debug(Ctx, 1);
+#else
+  modbus_set_response_timeout(Ctx, 0, 200000);
 #endif
 
 #ifdef RPI
