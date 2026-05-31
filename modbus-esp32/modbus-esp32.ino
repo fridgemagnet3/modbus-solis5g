@@ -8,6 +8,7 @@
 #include <lwip/sockets.h>
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
+#include <CRC16.h>
 
 // Module: ESP32-WROOM-DA Module
 
@@ -34,11 +35,12 @@ static int sFd = -1 ;
 static struct sockaddr_in BroadcastAddr ; 
 
 // read the required registers from modbus
-static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters)
+static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters,unsigned long &Elapsed)
 {
   uint8_t Rc ;
   bool Ret = false;
   const uint32_t TransactDelay = 80u ; // delay between each register request
+  unsigned long StartTransact = millis() ;
 
   memset(ModbusSolisRegisters,0,sizeof(ModbusSolisRegister_t)) ;
 
@@ -102,6 +104,8 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
   }
   else
     Serial.printf("readInputRegisters 33135-33150: %x\n", Rc) ;
+
+  Elapsed = millis() - StartTransact ;
 
   return Ret ;
 }
@@ -227,6 +231,90 @@ static void ModbusPostTransmit(void)
   digitalWrite(RS485_DIR, LOW);
 }
 
+// decode Modbus request and if not intended for our slave, respond with something
+// that will (hopefully) persuade the logger to stop querying it
+static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t SlaveId)
+{
+  const uint32_t MinMsgLen = 8;
+  uint8_t ReqSlave;
+  uint8_t FCodeReadInput = 4;
+  uint16_t Crc;
+  uint16_t Register;
+  uint32_t MsgStart = 0 ;
+
+  // discard any null bytes at the start of the message    
+  while(BufSz)
+  {
+    if ( !Buffer[MsgStart] )
+    {
+      BufSz-- ;
+      MsgStart++ ;
+    }
+    else
+      break ;
+  }
+  
+  // messages we're expecting should all be single register read requests, 8 bytes long
+  if (BufSz < MinMsgLen)
+  {
+    Serial.println("Message too short for a read input register function");
+    return -1;
+  }
+  // check slave not us
+  ReqSlave = Buffer[MsgStart];
+  if (ReqSlave == SlaveId)
+  {
+    Serial.println("Message is for local inverter, ignoring");
+    return SlaveId;
+  }
+
+  // check this is a read register request
+  if (Buffer[MsgStart+1] != FCodeReadInput)
+  {
+    Serial.println("Not a read input registers function, ignoring");
+    return -1;
+  }
+
+  // compute then verify the CRC
+  CRC16 ModBusCrc(CRC16_ARC_POLYNOME,CRC16_CCITT_FALSE_INITIAL,CRC16_XOR_OUT,CRC16_ARC_REV_IN,CRC16_ARC_REV_OUT);
+
+  ModBusCrc.add(&Buffer[MsgStart], MinMsgLen - sizeof(uint16_t));
+
+  Crc = (Buffer[MsgStart+7] << 8) + Buffer[MsgStart+6];
+  if (ModBusCrc.calc() != Crc)
+  {
+    Serial.printf("CRC Incorrect, should be %x\n", ModBusCrc.calc());
+    return -1;
+  }
+
+  // extract the register
+  Register = (Buffer[MsgStart+2] << 8) + Buffer[MsgStart+3];
+
+  Serial.printf("Message for slave: %u, register: %u\n", ReqSlave, Register);
+
+  // got what we need, now generate the response...
+  uint8_t ResponseBuf[5];
+  const uint8_t ExceptionIllegalData = 0x02;
+
+  // initial attempt: respond with an illegal address exception
+  ResponseBuf[0] = ReqSlave;
+  ResponseBuf[1] = FCodeReadInput | 0x80;
+  ResponseBuf[2] = ExceptionIllegalData;
+
+  ModBusCrc.restart();
+  ModBusCrc.add(ResponseBuf, 3);
+  ResponseBuf[3] = ModBusCrc.calc() & 0xff;
+  ResponseBuf[4] = ModBusCrc.calc() >> 8 ;
+
+  delay(150) ;
+  ModbusPreTransmit() ;
+  Serial2.write(ResponseBuf, sizeof(ResponseBuf)) ;
+  Serial2.flush(true) ;
+  ModbusPostTransmit() ;
+
+  return ReqSlave;
+}
+
 void setup() 
 {
   IPAddress LocalIp ;
@@ -241,8 +329,10 @@ void setup()
 
   // modbus serial
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
-  // 1s rx timeout
-  Serial2.setTimeout(1000) ;
+  // set rx timeout to ~200ms
+  // This *should* ensure every read call gives us a single Modbus request
+  // and possibly the response although we don't really care about those
+  Serial2.setTimeout(200) ;
 
   ModbusInst.begin(MODBUS_SLAVE_ID,Serial2);
   // setup the callbacks for enabling/disabling the transceivers
@@ -285,29 +375,25 @@ void setup()
 void loop() 
 {
   uint8_t ScratchBuf[256] ;
-  static unsigned long InitTime, SyncTime, ConsumeLogTime ;
-  const unsigned long MinSyncTime = 4000u ;
-  const unsigned long BusIdleTime = 12500u ; 
-  const unsigned long LoggerTimeout = 90*1000u ;  // 1.5min
-  const unsigned long ConsumeLogThreshold = 7000u ;
-  // should have 50s worth of free time, which allows for 3 requests at 20s intervals
-  const uint32_t RequestsPerCycle = 3;
-  const uint32_t PollDelay = 18000;
+  static unsigned long InitTime, SyncTime ;
+  static unsigned long BusIdleTime = 8000u ; 
+  const unsigned long LoggerTimeout = 300*1000u ;  // 5min
+  const uint32_t PollDelay = 16000;  // 16s
+  const uint32_t PollThreshold = 5000u;  // 5 seconds
   size_t BytesRead ;
   ModbusSolisRegister_t ModbusSolisRegisters;
   char *jSon;
-  static uint32_t RequestCycle = 0 ;
   static uint32_t LoggerFail = 0u ;
-  unsigned long Delta ;
+  static bool Slave10Tx = false ;
+  unsigned long Elapsed ;
+  static unsigned long TimeToNextPoll ;
 
   switch (SolisState)
   {
     case SYNC_INIT :
 
       Serial.println("Sync with logger...");
-      InitTime = millis() ;
       SolisState = SYNC_LOGGER ;
-      RequestCycle = 0u ;
       break ;
 
     case SYNC_LOGGER :
@@ -317,19 +403,19 @@ void loop()
       if (Serial2.available() )
       {
         SolisState = CONSUME_LOGGER ;
+        InitTime = millis() ;
         Serial.println("Consume logger data...");
-        ConsumeLogTime = millis() ;
       }
       else
       {
         delay(500) ;
         if ( (millis() - InitTime) > LoggerTimeout )
         {
-          Serial.println("Timed out waiting for logger activity\n");
+          Serial.println("Timed out waiting for logger activity - going ahead anyway...");
           LoggerFail++ ;
           // do one cycle then come back here
+          TimeToNextPoll = 1000u ;
           SolisState = MODBUS_REQUEST ;
-          RequestCycle = RequestsPerCycle - 1 ;
         }
       }
       break ;
@@ -342,42 +428,64 @@ void loop()
       BytesRead = Serial2.readBytes(ScratchBuf,sizeof(ScratchBuf)) ;
       if ( BytesRead )
       {
-        // this replicates the condition in the prototype code to dump data which comes in unexpectedly sooner than expected
-        // ie. dump it and start the re-sync process
-        if ( (millis() - InitTime) < MinSyncTime )
-        {
-          Serial.println("Got data within 4s, re-syncing just to be sure...");
-          SolisState = SYNC_INIT ;
-        }
+        int ReqSlave = DecodeAndRespondToSlave(ScratchBuf, BytesRead, 1u);
+        if ( ReqSlave == 10 )
+          Slave10Tx = true ;
+        else if ( ReqSlave == 2 ) // if there are multiple polls this cycle, make sure we reset the Tx flag
+          Slave10Tx = false ;
+
+        // this logic is designed to (in part) handle the logger reset behaviour...
+        
+        // Under normal conditions, it will poll all 10 slaves, then go idle for
+        // the remaining 5 minute cycle. That means we just need
+        // to wait for a short idle time (8s) before starting our transactions
+        // However when it's come out of reset, it can often start further polls
+        // much sooner. Under those conditions, it also never seems to complete all 
+        // the slave polling, instead appears to bail, then restart. So we use this
+        // behaviour to determine whether to hang around for longer - ie. if we
+        // *never* see a slave 10 transaction, assume we're going through a reset 
+        // and wait for much longer for the idle condition
+        if ( !Slave10Tx )
+          BusIdleTime = 30*1000 ;  // 30s
+        else
+          BusIdleTime = 8*1000 ;   // 8s
       }
       else
       {
-        // had no data for 1s
+        // had no data for 200ms
         SolisState = WAIT_IDLE ;
         // save time at which data stops arriving
         SyncTime = millis() ;
-        Serial.printf("Wait for data elapsed %d ms\n", SyncTime - InitTime);
-        Delta = millis() - ConsumeLogTime ;
-        Serial.printf("Consume log time %d ms\n", Delta);
-        if ( Delta > ConsumeLogThreshold )
-        {
-          Serial.println("Detected more traffic than usual, limiting polls this cycle to 1") ;
-          RequestCycle = RequestsPerCycle - 1 ;
-        }
-        Serial.println("Wait for bus idle...");
       }
       break ;
 
     case WAIT_IDLE :
 
-      // wait for 10s period of inactivity
+      // wait for 8s period of inactivity
       if (Serial2.available() )
         SolisState = CONSUME_LOGGER ;
-      else if ( (millis() - SyncTime) > BusIdleTime )  // test for ~10s of inactivity ie. no data received in this period
+      else if ( (millis() - SyncTime) > BusIdleTime )  // test for ~8s of inactivity ie. no data received in this period
       {
-        // bus is now clear, we should now have a good 50s time spare now
+        // bus is now clear
         SolisState = MODBUS_REQUEST ;
-        Serial.printf("Wait for idle elapsed %d ms\n", millis()-SyncTime);
+        Elapsed = millis()-InitTime ;
+
+        Serial.printf("Elapsed: %u seconds\n", Elapsed/1000u);
+
+        // work out how much time we have till the next logger poll is due
+        if ( Elapsed < LoggerTimeout )
+        {
+          const unsigned long MinElapsed = 60*1000 ;
+
+          // handle the (most likely startup) condition where we happen to 
+          // immediately detect traffic & therefore get a much shorter than expected elapsed time
+          if ( Elapsed < MinElapsed )
+            TimeToNextPoll = LoggerTimeout - MinElapsed ;
+          else
+            TimeToNextPoll = LoggerTimeout - Elapsed;
+        }
+        else
+          TimeToNextPoll = 1000u;  // if was longer than expected just do the one transaction, then resync
       }
       else
         delay(200);
@@ -394,46 +502,52 @@ void loop()
         SolisState = SYNC_INIT ;
         break ;
       }
+      Serial.printf("Time to next poll: %u seconds\n", TimeToNextPoll/1000u);
 
-      Serial.println("Issuing request");
-      if ( ModBusReadSolisRegisters( &ModbusSolisRegisters ) )
+      if ( TimeToNextPoll )
       {
-          Serial.printf("Battery capacity SOC: %u%%\n", ModbusSolisRegisters.batteryCapacitySoc);
-          Serial.printf("Battery power: %f kW\n", ModbusSolisRegisters.batteryPower);
-          Serial.printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
-          Serial.printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
-          Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
+        Serial.println("Issuing request");
+        if ( ModBusReadSolisRegisters( &ModbusSolisRegisters, Elapsed ) )
+        {
+            Serial.printf("Battery capacity SOC: %u%%\n", ModbusSolisRegisters.batteryCapacitySoc);
+            Serial.printf("Battery power: %f kW\n", ModbusSolisRegisters.batteryPower);
+            Serial.printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
+            Serial.printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
+            Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
 
-          // generate the JSON data, aligned to the Solis API
-          jSon = GenerateJson(&ModbusSolisRegisters,LoggerFail);
-          if (jSon)
-          {
-            Serial.printf("JSON data: %s:\n", jSon);
+            // generate the JSON data, aligned to the Solis API
+            jSon = GenerateJson(&ModbusSolisRegisters,LoggerFail);
+            if (jSon)
+            {
+              Serial.printf("JSON data: %s:\n", jSon);
 
-            if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
-              Serial.println("Failed to send broadcast packet") ;
-            free(jSon);
-          }
-          else
-            Serial.printf("Failed to encode JSON data\n");
-      }
-      else
-      {
-        // if a transaction fails, don't attempt any more in this window because the timings are likely to
-        // be screwed up, restart the state machine to sync with the wifi logger
-        SolisState = SYNC_INIT ;
-        Serial.printf("Failed to retrieve modbus data from inverter\n");
-        break ;
+              if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
+                Serial.println("Failed to send broadcast packet") ;
+              free(jSon);
+            }
+            else
+              Serial.printf("Failed to encode JSON data\n");
+        }
+        else
+          Serial.printf("Failed to retrieve modbus data from inverter\n");
+
+        // update how much time we have left till the next poll
+        if (TimeToNextPoll > (PollDelay+Elapsed))
+        {
+          TimeToNextPoll -= (PollDelay+Elapsed);
+          // don't go down to the wire
+          if (TimeToNextPoll < PollThreshold)
+            TimeToNextPoll = 0u;
+        }
+        else
+          TimeToNextPoll = 0u; 
       }
 
-      // should have 50s worth of free time, which allows for 3 requests at 20s intervals
-      RequestCycle++ ;
-      if ( RequestCycle == RequestsPerCycle )
-      {
-        SolisState = SYNC_INIT ;
-      }
-      else
+      // dont't delay on final cycle
+      if ( TimeToNextPoll) 
         delay(PollDelay);
+      else
+        SolisState = SYNC_INIT ; // back to sync with logger
       break ;
 
     default :
