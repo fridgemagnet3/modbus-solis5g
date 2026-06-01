@@ -58,7 +58,6 @@ ha_etotal_discover = '''
 }
 '''
 
-
 ha_familyload_discover = '''
 {
         "name": "House load power",
@@ -101,12 +100,12 @@ ha_psum_discover = '''
 ha_battery_charge_discover = '''
 {
         "name": "Solar battery charge",
-        "state_topic": "solar/batteryTodayChargeEnergy",
+        "state_topic": "solar/batteryTotalChargeEnergy",
         "device_class": "energy",
         "suggested_display_precision": 1,
         "platform": "sensor",
         "unit_of_measurement": "kWh",
-        "state_class": "total_increasing",
+        "state_class": "total",
         "expire_after": 900
 }
 '''
@@ -114,12 +113,12 @@ ha_battery_charge_discover = '''
 ha_battery_discharge_discover = '''
 {
         "name": "Solar battery discharge",
-        "state_topic": "solar/batteryTodayDischargeEnergy",
+        "state_topic": "solar/batteryTotalDischargeEnergy",
         "device_class": "energy",
         "suggested_display_precision": 1,
         "platform": "sensor",
         "unit_of_measurement": "kWh",
-        "state_class": "total_increasing",
+        "state_class": "total",
         "expire_after": 900
 }
 '''
@@ -127,12 +126,12 @@ ha_battery_discharge_discover = '''
 ha_grid_purchase_discover = '''
 {
         "name": "Grid import",
-        "state_topic": "solar/gridPurchasedTodayEnergy",
+        "state_topic": "solar/gridPurchasedTotalEnergy",
         "device_class": "energy",
         "suggested_display_precision": 1,
         "platform": "sensor",
         "unit_of_measurement": "kWh",
-        "state_class": "total_increasing",
+        "state_class": "total",
         "expire_after": 900
 }
 '''
@@ -140,12 +139,12 @@ ha_grid_purchase_discover = '''
 ha_grid_sell_discover = '''
 {
         "name": "Grid export",
-        "state_topic": "solar/gridSellTodayEnergy",
+        "state_topic": "solar/gridSellTotalEnergy",
         "device_class": "energy",
         "suggested_display_precision": 1,
         "platform": "sensor",
         "unit_of_measurement": "kWh",
-        "state_class": "total_increasing",
+        "state_class": "total",
         "expire_after": 900
 }
 '''
@@ -156,7 +155,7 @@ ha_logger_fails_discover = '''
         "state_topic": "solar/solisLoggerFailureCount",
         "platform": "sensor",
         "state_class": "total_increasing",
-        "expire_after": 600
+        "expire_after": 900
 }
 '''
 
@@ -216,11 +215,17 @@ mqttc.publish("homeassistant/sensor/solar/etotal/config",ha_etotal_discover,reta
 mqttc.publish("homeassistant/sensor/solar/familyLoadPower/config",ha_familyload_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/pac/config",ha_pac_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/psum/config",ha_psum_discover,retain=True)
-mqttc.publish("homeassistant/sensor/solar/batteryTodayChargeEnergy/config",ha_battery_charge_discover,retain=True)
-mqttc.publish("homeassistant/sensor/solar/batteryTodayDischargeEnergy/config",ha_battery_discharge_discover,retain=True)
-mqttc.publish("homeassistant/sensor/solar/gridPurchasedTodayEnergy/config",ha_grid_purchase_discover,retain=True)
-mqttc.publish("homeassistant/sensor/solar/gridSellTodayEnergy/config",ha_grid_sell_discover,retain=True)
+mqttc.publish("homeassistant/sensor/solar/batteryTotalChargeEnergy/config",ha_battery_charge_discover,retain=True)
+mqttc.publish("homeassistant/sensor/solar/batteryTotalDischargeEnergy/config",ha_battery_discharge_discover,retain=True)
+mqttc.publish("homeassistant/sensor/solar/gridPurchasedTotalEnergy/config",ha_grid_purchase_discover,retain=True)
+mqttc.publish("homeassistant/sensor/solar/gridSellTotalEnergy/config",ha_grid_sell_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/solisLoggerFailureCount/config",ha_logger_fails_discover,retain=True)
+
+last_etotal = "0.0"
+last_batteryTotalChargeEnergy = "0"
+last_batteryTotalDischargeEnergy = "0"
+last_gridPurchasedTotalEnergy = "0"
+last_gridSellTotalEnergy = "0"
 
 while True:
     # wait for and fetch next solar UDP packet
@@ -233,29 +238,40 @@ while True:
         json_solar_data = json.loads(str(solar_data,encoding='utf-8'))
 
         # these nodes are currently only in the packet derived from the cloud data
-        if 'batteryTodayChargeEnergy' in json_solar_data['data']:
-            batteryTodayChargeEnergy = convert_units(json_solar_data['data']['batteryTodayChargeEnergy'],
-                                                     json_solar_data['data']['batteryTodayChargeEnergyStr'],
+        if 'batteryTotalChargeEnergy' in json_solar_data['data']:
+            batteryTotalChargeEnergy = convert_units(json_solar_data['data']['batteryTotalChargeEnergy'],
+                                                     json_solar_data['data']['batteryTotalChargeEnergyStr'],
                                                                              "kWh")
-            mqttc.publish("solar/batteryTodayChargeEnergy",batteryTodayChargeEnergy)
-        if 'batteryTodayDischargeEnergy' in json_solar_data['data']:
-            batteryTodayDischargeEnergy = convert_units(json_solar_data['data']['batteryTodayDischargeEnergy'],
-                                                        json_solar_data['data']['batteryTodayDischargeEnergyStr'],
+            if batteryTotalChargeEnergy>=last_batteryTotalChargeEnergy:
+                mqttc.publish("solar/batteryTotalChargeEnergy",batteryTotalChargeEnergy)
+                last_batteryTotalChargeEnergy=batteryTotalChargeEnergy
+        if 'batteryTotalDischargeEnergy' in json_solar_data['data']:
+            batteryTotalDischargeEnergy = convert_units(json_solar_data['data']['batteryTotalDischargeEnergy'],
+                                                        json_solar_data['data']['batteryTotalDischargeEnergyStr'],
                                                         "kWh")
-            mqttc.publish("solar/batteryTodayDischargeEnergy",batteryTodayDischargeEnergy)
-        if 'gridPurchasedTodayEnergy' in json_solar_data['data']:
-            gridPurchasedTodayEnergy = convert_units(json_solar_data['data']['gridPurchasedTodayEnergy'],
-                                                     json_solar_data['data']['gridPurchasedTodayEnergyStr'],
+            if batteryTotalDischargeEnergy>=last_batteryTotalDischargeEnergy:
+                mqttc.publish("solar/batteryTotalDischargeEnergy",batteryTotalDischargeEnergy)
+                last_batteryTotalDischargeEnergy = batteryTotalDischargeEnergy
+        if 'gridPurchasedTotalEnergy' in json_solar_data['data']:
+            gridPurchasedTotalEnergy = convert_units(json_solar_data['data']['gridPurchasedTotalEnergy'],
+                                                     json_solar_data['data']['gridPurchasedTotalEnergyStr'],
                                                      "kWh")
-            mqttc.publish("solar/gridPurchasedTodayEnergy",gridPurchasedTodayEnergy)
-        if 'gridSellTodayEnergy' in json_solar_data['data']:
-            gridSellTodayEnergy = convert_units(json_solar_data['data']['gridSellTodayEnergy'],
-                                                json_solar_data['data']['gridSellTodayEnergyStr'],
+            if gridPurchasedTotalEnergy>=last_gridPurchasedTotalEnergy:
+                mqttc.publish("solar/gridPurchasedTotalEnergy",gridPurchasedTotalEnergy)
+                last_gridPurchasedTotalEnergy = gridPurchasedTotalEnergy
+        if 'gridSellTotalEnergy' in json_solar_data['data']:
+            gridSellTotalEnergy = convert_units(json_solar_data['data']['gridSellTotalEnergy'],
+                                                json_solar_data['data']['gridSellTotalEnergyStr'],
                                                 "kWh")
-            mqttc.publish("solar/gridSellTodayEnergy",gridSellTodayEnergy)
+            if gridSellTotalEnergy>=last_gridSellTotalEnergy:
+                mqttc.publish("solar/gridSellTotalEnergy",gridSellTotalEnergy)
+                last_gridSellTotalEnergy = gridSellTotalEnergy
         if 'eTotal' in json_solar_data['data']:
             eTotal = convert_units(json_solar_data['data']['eTotal'],json_solar_data['data']['eTotalStr'],"kWh")
-            mqttc.publish("solar/etotal",eTotal)
+            # temp workaround for differential between local/cloud figures
+            if eTotal>=last_etotal:
+                mqttc.publish("solar/etotal",eTotal)
+                last_etotal = eTotal
         # this is ONLY in the data published locally and provides a counter
         # of how many times the modbus app detects that the logger has stopped issuing requests
         if 'loggerFail' in json_solar_data:
@@ -265,7 +281,7 @@ while True:
         # for the 'live' data, make sure we're using the latest
         dataTimestamp = int(json_solar_data['data']['dataTimestamp']) / 1000
         dataTimestamp = datetime.datetime.fromtimestamp(dataTimestamp)
-        if last_solar_timestamp==None or dataTimestamp > last_solar_timestamp:
+        if last_solar_timestamp==None or dataTimestamp >= last_solar_timestamp:
             last_solar_timestamp = dataTimestamp
 
             # battery charge remaining (in %)
