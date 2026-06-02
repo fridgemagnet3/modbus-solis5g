@@ -36,20 +36,14 @@ Register accesses: 33135-33150
             
 For HA energy dashboard:
 
-batteryTodayChargeEnergy
-33163 - Battery charge today, kWh
-
-batteryTodayDischargeEnergy
-33167 - Battery discharge today, kWh
-
-gridPurchasedTodayEnergy
-33171 - Grid power imported today, kWh
-
-gridSellTodayEnergy
-33175 - Power exported from grid today, kWh
-
 eTotal - solar generation total
 33029-33030 Inverter total power generation, kWh
 
+33161:33162 - Total battery charge, kWh
+33165:33166 - Total battery discharge, kWh
+33169:33170 - Total power imported from grid, kWh
+33173:33174 - Total power exported to grid, kWh
+
 Register accesses: 33029 (combine with 33035 read)
-                   33163-33175
+                   33161-33174
+                   

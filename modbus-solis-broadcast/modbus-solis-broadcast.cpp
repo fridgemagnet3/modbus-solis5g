@@ -81,11 +81,11 @@ typedef struct {
   double   psum;   // grid in/out (kW)
   double   familyLoadPower; // load (kW)
   double   etoday;  // generation today (kWh)
-  double   batteryTodayChargeEnergy; // battery charge today (kWh)
-  double   batteryTodayDischargeEnergy;  // battery discharge today (kWh)
-  double   gridPurchasedTodayEnergy; // grid imported today (kWh)
-  double   gridSellTodayEnergy; // grid exported today (kWh)
-  uint32_t eTotal; // solar generation total
+  uint32_t batteryTotalChargeEnergy; // battery total charge (kWh)
+  uint32_t batteryTotalDischargeEnergy;  // battery total discharge (kWh)
+  uint32_t gridPurchasedTotalEnergy; // grid imported total (kWh)
+  uint32_t gridSellTotalEnergy; // grid exported total (kWh)
+  uint32_t eTotal; // solar generation total (kWh)
 } ModbusSolisRegister_t;
 
 static const uint32_t LoggerCycleTime = 300u; // 5 minutes
@@ -234,20 +234,20 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
 
   if (Ret)
   {
-    const int NoRegisters = 13;
+    const int NoRegisters = 14;
 
-    // 33163 - Battery charge today
-    // 33167 - Battery discharge capacity
-    // 33171 - Grid power imported today
-    // 33175 - Power exported from grid today
-    Rc = modbus_read_input_registers(Ctx, 33163, NoRegisters, RegBank);
+    // 33161:33162 - Battery charge total
+    // 33165:33166 - Battery discharge total
+    // 33169:33170 - Grid power imported total
+    // 33173:33174 - Power exported from grid total
+    Rc = modbus_read_input_registers(Ctx, 33161, NoRegisters, RegBank);
     if (Rc == NoRegisters)
     {
       // expressed in 0.1kWh intervals
-      ModbusSolisRegisters->batteryTodayChargeEnergy = (float)(RegBank[0])*0.1;
-      ModbusSolisRegisters->batteryTodayDischargeEnergy = (float)(RegBank[4])*0.1;
-      ModbusSolisRegisters->gridPurchasedTodayEnergy = (float)(RegBank[8])*0.1;
-      ModbusSolisRegisters->gridSellTodayEnergy = (float)(RegBank[12])*0.1;
+      ModbusSolisRegisters->batteryTotalChargeEnergy = (RegBank[0] << 16) + RegBank[1];
+      ModbusSolisRegisters->batteryTotalDischargeEnergy = (RegBank[4] << 16) + RegBank[5];
+      ModbusSolisRegisters->gridPurchasedTotalEnergy = (RegBank[8] << 16) + RegBank[9];
+      ModbusSolisRegisters->gridSellTotalEnergy = (RegBank[12] << 16) + RegBank[13];
     }
     else
     {
@@ -815,34 +815,34 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
       cJSON_AddItemToObject(SolarData, "familyLoadPowerStr", Node);
 
     // battery charge/discharge
-    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTodayChargeEnergy);
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTotalChargeEnergy);
     if (Node)
-      cJSON_AddItemToObject(SolarData, "batteryTodayChargeEnergy", Node);
+      cJSON_AddItemToObject(SolarData, "batteryTotalChargeEnergy", Node);
     Node = cJSON_CreateString("kWh");
     if (Node)
-      cJSON_AddItemToObject(SolarData, "batteryTodayChargeEnergyStr", Node);
+      cJSON_AddItemToObject(SolarData, "batteryTotalChargeEnergyStr", Node);
 
-    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTodayDischargeEnergy);
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTotalDischargeEnergy);
     if (Node)
-      cJSON_AddItemToObject(SolarData, "batteryTodayDischargeEnergy", Node);
+      cJSON_AddItemToObject(SolarData, "batteryTotalDischargeEnergy", Node);
     Node = cJSON_CreateString("kWh");
     if (Node)
-      cJSON_AddItemToObject(SolarData, "batteryTodayDischargeEnergyStr", Node);
+      cJSON_AddItemToObject(SolarData, "batteryTotalDischargeEnergyStr", Node);
 
     // grid today in/out
-    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridPurchasedTodayEnergy);
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridPurchasedTotalEnergy);
     if (Node)
-      cJSON_AddItemToObject(SolarData, "gridPurchasedTodayEnergy", Node);
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTotalEnergy", Node);
     Node = cJSON_CreateString("kWh");
     if (Node)
-      cJSON_AddItemToObject(SolarData, "gridPurchasedTodayEnergyStr", Node);
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTotalEnergyStr", Node);
 
-    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridSellTodayEnergy);
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridSellTotalEnergy);
     if (Node)
-      cJSON_AddItemToObject(SolarData, "gridSellTodayEnergy", Node);
+      cJSON_AddItemToObject(SolarData, "gridSellTotalEnergy", Node);
     Node = cJSON_CreateString("kWh");
     if (Node)
-      cJSON_AddItemToObject(SolarData, "gridSellTodayEnergyStr", Node);
+      cJSON_AddItemToObject(SolarData, "gridSellTotalEnergyStr", Node);
   }
 
   // the outer pieces
@@ -985,10 +985,10 @@ int main(int argc, char *argv[])
           printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
           printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
           printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
-          printf("Battery charge today: %f kW\n", ModbusSolisRegisters.batteryTodayChargeEnergy);
-          printf("Battery discharge today: %f kW\n", ModbusSolisRegisters.batteryTodayDischargeEnergy);
-          printf("Grid power imported today: %f kW\n", ModbusSolisRegisters.gridPurchasedTodayEnergy);
-          printf("Grid power exported today: %f kW\n", ModbusSolisRegisters.gridSellTodayEnergy);
+          printf("Battery total charge: %u kW\n", ModbusSolisRegisters.batteryTotalChargeEnergy);
+          printf("Battery total discharge: %u kW\n", ModbusSolisRegisters.batteryTotalDischargeEnergy);
+          printf("Grid power imported total: %u kW\n", ModbusSolisRegisters.gridPurchasedTotalEnergy);
+          printf("Grid power exported total: %u kW\n", ModbusSolisRegisters.gridSellTotalEnergy);
           printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
         }
 
