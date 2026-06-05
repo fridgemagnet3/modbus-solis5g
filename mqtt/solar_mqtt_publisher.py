@@ -226,7 +226,6 @@ last_batteryTotalChargeEnergy = "0"
 last_batteryTotalDischargeEnergy = "0"
 last_gridPurchasedTotalEnergy = "0"
 last_gridSellTotalEnergy = "0"
-last_etoday = "0.0"
 
 while True:
     # wait for and fetch next solar UDP packet
@@ -310,16 +309,13 @@ while True:
             etoday = convert_units(json_solar_data['data']['eToday'],
                                    json_solar_data['data']['eTodayStr'],
                                    "kWh")
-            if etoday>=last_etoday:
-                mqttc.publish("solar/etoday",etoday)
-                last_etoday = etoday
-
             # publish
             mqttc.publish("solar/batteryCapacitySoc",batteryCapacitySoc)
             mqttc.publish("solar/batteryPower",batteryPower)
             mqttc.publish("solar/pac",pac)
             mqttc.publish("solar/psum",psum)
             mqttc.publish("solar/familyLoadPower",familyLoadPower)
+            mqttc.publish("solar/etoday",etoday)
     except:
         print("Exception processing solar data")
 
