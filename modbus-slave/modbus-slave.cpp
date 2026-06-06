@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#define Sleep(a) usleep(a*1000)
 #endif
 #include "registers.h"
 #include "read_transact.h"
@@ -17,6 +18,7 @@
 #include <boost/date_time.hpp>
 #include <modbus/modbus.h>
 #include <iostream>
+#include <inttypes.h>
 
 // modebus-slave. This is designed to loosely emulate the behaviour of the Solis inverter
 // when connected to the wifi logger
@@ -157,17 +159,100 @@ static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_ma
   return 0;
 }
 
+#ifdef WIN32
+
+static HANDLE OpenW32Serial(const char *Device, int Flags)
+{
+  DWORD CommFlags = 0;
+
+  if (Flags & O_WRONLY)
+    CommFlags |= GENERIC_WRITE;
+  else
+    CommFlags = GENERIC_READ;
+  if (Flags & O_RDWR)
+    CommFlags |= (GENERIC_WRITE | GENERIC_READ);
+
+  HANDLE hComm = CreateFile(Device, CommFlags, 0, NULL, OPEN_EXISTING, 0, NULL);
+  if (hComm == INVALID_HANDLE_VALUE)
+    return hComm;
+
+  DCB Dcb;
+  Dcb.DCBlength = sizeof(Dcb);
+
+  if (!GetCommState(hComm, &Dcb))
+  {
+    CloseHandle(hComm);
+    return INVALID_HANDLE_VALUE;
+  }
+  Dcb.BaudRate = CBR_9600;
+  Dcb.ByteSize = 8;
+  Dcb.StopBits = ONESTOPBIT;
+  Dcb.Parity = NOPARITY;
+  Dcb.fBinary = TRUE;
+  Dcb.fOutxCtsFlow = FALSE;
+  Dcb.fOutxDsrFlow = FALSE;
+  Dcb.fDsrSensitivity = FALSE;
+  Dcb.fTXContinueOnXoff = FALSE;
+  Dcb.fOutX = FALSE;
+  Dcb.fInX = FALSE;
+  Dcb.fNull = FALSE;
+  Dcb.fAbortOnError = FALSE;
+  if (!SetCommState(hComm, &Dcb))
+  {
+    CloseHandle(hComm);
+    return INVALID_HANDLE_VALUE;
+  }
+
+  return hComm;
+}
+
+static int OpenW32SerialAsFd(const char *Device, int Flags)
+{
+  HANDLE hComm = OpenW32Serial(Device, Flags);
+  if (hComm != INVALID_HANDLE_VALUE)
+    return _open_osfhandle((intptr_t)hComm, Flags);
+  else
+    return -1;
+}
+
+#endif
+
+static void TransactSlave(modbus_t *Ctx)
+{
+  int Rc;
+  const int RegCount = 4;
+  int Registers[] = { 35000, 36000, 2999, 33000 };
+  uint16_t RegValue;
+
+  // logger has a 3 second timeout on each request (except the final one)
+  modbus_set_response_timeout(Ctx, 3, 0);
+
+  for (int i = 0; i < RegCount; i++)
+  {
+    printf("Read register %d\n", Registers[i]);
+    Rc = modbus_read_input_registers(Ctx, Registers[i], sizeof(uint16_t), &RegValue);
+    if (Rc == sizeof(uint16_t))
+    {
+      printf("Reg Value: %hx\n", RegValue);
+    }
+    else
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+
+    if (i == (RegCount-1))
+      modbus_set_response_timeout(Ctx, 1, 0); // set to 1s timeout on final tx, the 3s inter-slave delay then results in a 4s timeout if nothing responds
+  }
+}
+
 // simulate a wifi logger transaction, this just dumps out representative, fixed data
 static bool SimulateBusTransaction(const char *Device, uint32_t &Elapsed)
 {
-  static uint32_t Cycles = 0;
   int Fd ;
   bool Status = true;
 
 #ifndef WIN32
   Fd = open(Device, O_WRONLY);
 #else
-  Fd = _open(Device, O_WRONLY | _O_BINARY);
+  Fd = OpenW32SerialAsFd(Device, O_WRONLY );
 #endif
 
   if (Fd < 0)
@@ -179,46 +264,85 @@ static bool SimulateBusTransaction(const char *Device, uint32_t &Elapsed)
   boost::posix_time::ptime RequestTime(boost::posix_time::second_clock::local_time());
   std::cout << std::endl << "Simulated logger transact at " << boost::posix_time::to_simple_string(RequestTime) << "..." << std::endl;
 
-  printf("Performing logger write register transaction\n");
+  // Primarily this is about simulating the timing behaviour. There are 13 distinct
+  // Modbus transactions performed occurring at anywhere from 136ms thru 242ms apart
+  // overall the time taken is around 7s
+  const uint32_t TransactCount = 13u ;
+  const uint32_t TransactSize = __read_transact_bin_len / TransactCount ;
+  uint8_t *Ptr = __read_transact_bin ;
+  const uint32_t TransactDelay = 600 ; 
 
-  // simulate the register write transaction performed by the logger
-  if (write(Fd, __write_transact_bin, __write_transact_bin_len) < 0)
+  printf("Performing logger read register transactions\n");
+  for(uint32_t i=0 ; i < TransactCount ; i++ )
   {
-    perror("write");
-    Status = false;
-  }
-
-  // every 5 minutes, simulate the register read transaction performed by the logger
-  if (!(Cycles % 5))
-  {
-    // Primarily this is about simulating the timing behaviour. There are 13 distinct
-    // Modbus transactions performed occurring at anywhere from 136ms thru 242ms apart
-    // overall the time taken is around 3s
-    const uint32_t TransactCount = 13u ;
-    const uint32_t TransactSize = __read_transact_bin_len / TransactCount ;
-    uint8_t *Ptr = __read_transact_bin ;
-    const useconds_t TransactDelay = 240*1000 ; // 
-
-    printf("Performing logger read register transactions\n");
-    for(uint32_t i=0 ; i < TransactCount ; i++ )
+    if (write(Fd, Ptr, TransactSize) < 0)
     {
-      if (write(Fd, Ptr, TransactSize) < 0)
-      {
-        perror("write");
-        Status = false;
-      }
-      Ptr+=TransactSize ;
-      usleep(TransactDelay) ;
+      perror("write");
+      Status = false;
     }
+    Ptr+=TransactSize ;
+    Sleep(TransactDelay) ;
   }
-  Cycles++;
 
   close(Fd);
 
+  if (!Status)
+    return false;
+
+  // should be about 8s elapsed
+
+  {
+    boost::posix_time::ptime EndTime(boost::posix_time::second_clock::local_time());
+    boost::posix_time::time_duration ElapsedTime = EndTime - RequestTime;
+    Elapsed = ElapsedTime.total_seconds();
+    printf("Elapsed: %02" PRId64 ":%02" PRId64 ".%03" PRId64"\n", ElapsedTime.minutes(), ElapsedTime.seconds(), ElapsedTime.fractional_seconds());
+  }
+
+
+  // setup for starting to poll slaves
+  const uint32_t MaxSlaves = 10;
+  const uint32_t InterSlaveDelay = 3000;  // there is always a 3s delay between each set of slave transactions
+
+  modbus_t *Ctx = modbus_new_rtu(Device, 9600, 'N', 8, 1);
+
+  if (!Ctx)
+  {
+    printf("modbus_new_rtu: %s\n", modbus_strerror(errno));
+    return false;
+  }
+  if (modbus_connect(Ctx) == -1)
+  {
+    printf("modbus_connect: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return false;
+  }
+
+  modbus_set_debug(Ctx, 1);
+
+  // transact the slaves
+  for (uint32_t Slave = 2; Slave <= MaxSlaves; Slave++)
+  {
+    if (modbus_set_slave(Ctx, Slave) == -1)
+    {
+      printf("Error setting slave %u: %s\n", Slave, modbus_strerror(errno));
+    }
+    else
+    {
+      printf("\nTransact Slave %u\n", Slave);
+      TransactSlave(Ctx);
+    }
+    Sleep(InterSlaveDelay);
+  }
+  modbus_close(Ctx);
+  modbus_free(Ctx);
+
   boost::posix_time::ptime EndTime(boost::posix_time::second_clock::local_time());
   boost::posix_time::time_duration ElapsedTime = EndTime - RequestTime ;
+
+  // for non-responsive slaves, this should be ~2min, 5 seconds
+  // for responsive slaves, should be ~40s
   Elapsed = ElapsedTime.total_seconds() ;
-  printf( "Elapsed: %u s\n", Elapsed) ;
+  printf("Elapsed: %02" PRId64 ":%02" PRId64 ".%03" PRId64"\n", ElapsedTime.minutes(), ElapsedTime.seconds(), ElapsedTime.fractional_seconds());
 
   return Status;
 }
@@ -276,7 +400,8 @@ int main(int argc, char *argv[])
   {
     if (SimulateLogger)
       SimulateBusTransaction(argv[1],Elapsed);
-    Rc = ModBusHandleResponse(argv[1], Slave, ModBusMapping,60-Elapsed);
+    // each logger cycle is performed every 5 minutes so we have whatever is left to issue requests
+    Rc = ModBusHandleResponse(argv[1], Slave, ModBusMapping,300-Elapsed);
   }
 
   modbus_mapping_free(ModBusMapping);

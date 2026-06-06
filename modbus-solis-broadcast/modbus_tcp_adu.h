@@ -100,17 +100,20 @@ public :
       return false;
 
     // holding registers (apart from the clock) are mostly controls
-    // so shouldn't really change...
+    // so shouldn't really change that often
     if ( Transaction == HOLDING_REGISTERS )
-    {
-      if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::minutes(20)))
-        return true;
-    }
-    else
     {
       if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::minutes(5)))
         return true;
     }
+    else
+    {
+      // fractionally over 1 minute to allow for HA Solis Modbus slow poll interval plus
+      // our "normal" poll of 16s
+      if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::seconds(80)))
+        return true;
+    }
+
     return false;
   }
 

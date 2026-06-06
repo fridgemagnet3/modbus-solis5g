@@ -337,6 +337,8 @@ modbus_t *ModbusTcpAdu::CreateModbusRtuSession(const char *Device, uint8_t Slave
   // for testing
   modbus_set_response_timeout(Ctx, 15, 0);
   modbus_set_debug(Ctx, 1);
+#else
+  modbus_set_response_timeout(Ctx, 0, 200000);
 #endif
 
   return Ctx;
