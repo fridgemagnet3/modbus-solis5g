@@ -2,13 +2,11 @@
 
 This branch currently exists as a **proof of concept** in extending my [modbus-solis-broadcast](./modbus-solis-broadcast) app to operate as a Modbus TCP server, forwarding requests to/from the inverter. This then allows a Modbus TCP client (eg. HA) to make arbitrary register accesses (primarily writes). 
 
-As background, perusing the README on the main branch is worthwhile to give an overview of how the original app works however as a brief summary, the Wifi datalogger issues a Modbus request to the inverter every minute, with the main register retrieval occurring every 5 minutes. This leaves plenty of spare capacity on the serial link which _modbus-solis-broadcast_ takes advantage of to read the most useful status registers, encode them as a JSON payload & transmit them out as a UDP broadcast packet. It does this roughly every 20 seconds. 
-
-The new functionality allows one of those 20s slots to be used to instead be used to perform an abirtary read/write of one or more registers from the inverter, as depicted in the following diagram.
-
-<img width="696" height="299" alt="tcp-transact-timeline" src="https://github.com/user-attachments/assets/9eba929f-3cb3-4f28-8ebc-631ba8053ecb" />
+This has been updated with the scheduler changes, resulting from newer versions of the datalogger firmware lifted from the [10154 branch](https://github.com/fridgemagnet3/modbus-solis5g/tree/10154) meaning it _should_ work with that version of firmware and newer (or whenever the datalogger behaviour changed post 1012f). 
 
 Note: At the present time, I have only tested this in simulation with my [modbus-slave](./modbus-slave) app, it's NOT been connected to a Solis inverter however since it uses the same Modbus library to perform the RTU transactions, I forsee no reason why it shouldn't work as expected.
+
+As a result of those updates and taking advantage of the fact that for (effectively) 4 out of every 5 minutes the inverter Modbus link is now idle, I've significantly improved the scheduling behaviour from the [original branch](https://github.com/fridgemagnet3/modbus-solis5g/tree/tcp_1012f). Now, instead of issuing a limited number of requests every 20s (to the detriment of the normal UDP broadcasts), **ALL** pending transactions are actioned at the start of the poll, then the normal UDP broadcast. The net result is (generally) a much more responsive system. The exception to this is that 40-50s window when the datalogger is doing it's thing, meaning we're locked out for the duration however that can't really be helped.
 
 ## How it works
 
@@ -54,13 +52,13 @@ Modbus
     Reference Number: 43003
     Data: 000d
 ```
-Whilst read requests are supported, the primary purpose of this extension is for performing thd odd write request ie. to control the inverter in some way. If regular reads are required, it would be better to incorporate them into the regular UDP broadcast packets. Input register reads are cached for 5 minutes, holding registers for 20 minutes (on the basis the latter are more likely only to change when updated by an external write). 
+Whilst read requests are supported, the primary purpose of this extension is for performing thd odd write request ie. to control the inverter in some way. If regular reads are required, it would be better to incorporate them into the regular UDP broadcast packets. Input register reads are cached for 1 minute, holding registers for 5 minutes (on the basis the latter are more likely only to change when updated by an external write). 
 
-This works quite nicely with [fboundy's ha_solis_modbus](https://github.com/fboundy/ha_solis_modbus), which was used to generate the above network capture by using the example script to set the inverter's time. There is obviously a delay between any write/read and getting the response back however after running the script, 40-50s later, the expected results are reflected in the Solis Hour/Minute/Second RW registers. 
+This works quite nicely with [fboundy's ha_solis_modbus](https://github.com/fboundy/ha_solis_modbus), which was used to generate the above network capture by using the example script to set the inverter's time. There is obviously a delay between any write/read and getting the response back however after running the script, 20-30s later, the expected results are reflected in the Solis Hour/Minute/Second RW registers. Here I've extended it to pull some usage metrics and stick them on a dashboard:
 
 ![PXL_20260328_184423624](https://github.com/user-attachments/assets/40655d48-b9ca-4094-84f3-a8fa8cb3b5e1)
 
-It's not though really going to work that well with [Pho3niX90's Modbus integration](https://github.com/Pho3niX90/solis_modbus) which performs a LOT of register accesses, although I have run it up with this, just to prove the point. What you find is that it will take 10-15 minutes to fully enable all the sensors and controls during which period there will be no UDP broadcast packets. Ultimately what you end up with is a lag that is arguably worse than talking to the Solis cloud.
+Whilst not designed to work with something like [Pho3niX90's Modbus integration](https://github.com/Pho3niX90/solis_modbus) which performs a LOT of register accesses, I have run it up with this and it seems to behave ok. You need to wait 3-4 minutes at the start for all the sensors and controls to be updated however after that it should be fine (this is much improved over the [original version](https://github.com/fridgemagnet3/modbus-solis5g/tree/tcp_1012f) where it takes 10-15 minutes to fully populate and enable everything). You just need to remember it may also take upwards of a minute to action a control (particularly if it's sent when the datalogger is busy).
 
 ![PXL_20260327_142546306](https://github.com/user-attachments/assets/92b22f75-bd58-4632-aad1-fa3f12113fba)
 
