@@ -63,3 +63,5 @@ Whilst not designed to work with something like [Pho3niX90's Modbus integration]
 ![PXL_20260327_142546306](https://github.com/user-attachments/assets/92b22f75-bd58-4632-aad1-fa3f12113fba)
 
 The server should support multiple TCP clients although this is untested.
+
+Here's a [video](https://youtu.be/fnl59WGnfrM?si=Im2rtFCH23bFSHs1) of it in action, with me droning on in the background.
