@@ -1292,13 +1292,19 @@ int main(int argc, char *argv[])
     // work out how much time we have till the next logger poll is due
     if (Elapsed < LoggerCycleTimeMilliseconds)
     {
-    	const uint32_t MinElapsed = 60*1000 ;
-    	// handle the (most likely startup) condition where we happen to 
-    	// immediately detect traffic & therefore get a much shorter than expected elapsed time
-    	if ( Elapsed < MinElapsed )
-    	  TimeToNextPoll = LoggerCycleTimeMilliseconds - MinElapsed ;
-    	else
-          TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
+      const uint32_t MinElapsed = 50*1000 ;
+      const uint32_t InterruptedMaxTimeToPoll = 150 * 1000;
+
+      // handle the (most likely only at startup) condition where we happen to 
+      // immediately detect traffic & therefore get a much shorter than expected elapsed time
+      // If we detect *all* the logger traffic, Elapsed should be ~55s so allowing for a margin of
+      // error, if less than that, then we've only picked up some of it. Worst case (assuming we've
+      // just caught the tail end), the next poll will be about 2m55s later so again allowing for 
+      // a margin of error, 150s (2.5mins) should be fine
+      if ( Elapsed < MinElapsed )
+        TimeToNextPoll = InterruptedMaxTimeToPoll;
+      else
+        TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
     }
     else
       TimeToNextPoll = 1000u;  // if we didn't see any logger traffic, or was longer than expected
