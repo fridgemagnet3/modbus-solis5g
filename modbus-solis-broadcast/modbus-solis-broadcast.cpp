@@ -31,43 +31,7 @@ typedef int socklen_t;
 #include <algorithm>
 #include "modbus_tcp_adu.h"
 #ifdef RPI
-#include <wiringPi.h>
-
-// define GPIOs for RS485 control
-#define RS485_RE 4
-// only define one if RE & DE are tied together
-//#define RS485_DE 24
-
-// RTS handler used to control the RS485 direction GPIO
-static void RTSHandler(modbus_t *Ctx, int On)
-{
-  if (On)
-  {
-    // disable receiver, enable transmitter
-#ifdef RS485_RE
-    digitalWrite(RS485_RE, HIGH);
-#endif
-#ifdef RS485_DE
-    digitalWrite(RS485_DE, HIGH);
-#endif
-    // allow time for the other end to switch
-    Sleep(10);
-  }
-  else
-  {
-    if (Ctx)
-      tcdrain(modbus_get_socket(Ctx)) ;
-    // a delay may/may not be required here
-    Sleep(1);
-    // restore default receive functionality
-#ifdef RS485_RE
-    digitalWrite(RS485_RE, LOW);
-#endif
-#ifdef RS485_DE
-    digitalWrite(RS485_DE, LOW);
-#endif
-  }
-}
+#include "rpi_gpio.h"
 #endif
 
 // maxm. no of TCP clients we can handle
@@ -135,23 +99,6 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   
   if (!Ctx)
     return false;
-
-#ifdef RPI
-  // enable RS485 mode
-  if (modbus_rtu_set_rts(Ctx, MODBUS_RTU_RTS_UP) < 0)
-  {
-    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
-    modbus_free(Ctx);
-    return false;
-  }
-  // set the callback used to control the RS485 transceivers
-  if (modbus_rtu_set_custom_rts(Ctx, RTSHandler) < 0)
-  {
-    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
-    modbus_free(Ctx);
-    return false;
-  }
-#endif
 
   // most of what we need is in a single grouping
   // see RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf
@@ -1348,8 +1295,8 @@ int main(int argc, char *argv[])
 
           // send out to clients
           BroadcastAddr.sin_port = htons(52005);
-          if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
-            perror("sendto");
+          //if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
+          //  perror("sendto");
           free(jSon);
         }
         else

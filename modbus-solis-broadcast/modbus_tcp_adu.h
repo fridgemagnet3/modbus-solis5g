@@ -145,6 +145,10 @@ private :
       return false;
   }
 
+#ifdef RPI
+  static void RTSHandler(modbus_t *Ctx, int On) ;
+#endif
+
   // type of transaction
   typedef enum { COILS, DISCRETES, HOLDING_REGISTERS, INPUT_REGISTERS } Transaction_t;
 

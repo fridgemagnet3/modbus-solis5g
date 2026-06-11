@@ -5,6 +5,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #endif
+#ifdef RPI
+#include "rpi_gpio.h"
+#include <unistd.h>
+#include <termios.h>
+#endif
 
 // supported function code definitions
 const uint8_t ModbusTcpAdu::FCodeReadDiscrete = 2;
@@ -333,12 +338,32 @@ modbus_t *ModbusTcpAdu::CreateModbusRtuSession(const char *Device, uint8_t Slave
     modbus_free(Ctx);
     return nullptr;
   }
+  
 #ifdef WIN32
   // for testing
   modbus_set_response_timeout(Ctx, 15, 0);
   modbus_set_debug(Ctx, 1);
 #else
   modbus_set_response_timeout(Ctx, 0, 200000);
+#endif
+
+#ifdef RPI
+  // enable RS485 mode
+  if (modbus_rtu_set_rts(Ctx, MODBUS_RTU_RTS_UP) < 0)
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_close(Ctx);
+    modbus_free(Ctx);
+    return nullptr;
+  }
+  // set the callback used to control the RS485 transceivers
+  if (modbus_rtu_set_custom_rts(Ctx, RTSHandler) < 0)
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_close(Ctx);
+    modbus_free(Ctx);
+    return nullptr;
+  }
 #endif
 
   return Ctx;
@@ -458,3 +483,36 @@ bool ModbusTcpAdu::InvalidateAdu(const ModbusTcpAdu &Other)
   }
   return false;
 }
+
+#ifdef RPI
+// RTS handler used to control the RS485 direction GPIO
+static void ModbusTcpAdu::RTSHandler(modbus_t *Ctx, int On)
+{
+  if (On)
+  {
+    // disable receiver, enable transmitter
+#ifdef RS485_RE
+    digitalWrite(RS485_RE, HIGH);
+#endif
+#ifdef RS485_DE
+    digitalWrite(RS485_DE, HIGH);
+#endif
+    // allow time for the other end to switch
+    usleep(10*1000);
+  }
+  else
+  {
+    if (Ctx)
+      tcdrain(modbus_get_socket(Ctx)) ;
+    // a delay may/may not be required here
+    usleep(1*1000);
+    // restore default receive functionality
+#ifdef RS485_RE
+    digitalWrite(RS485_RE, LOW);
+#endif
+#ifdef RS485_DE
+    digitalWrite(RS485_DE, LOW);
+#endif
+  }
+}
+#endif
