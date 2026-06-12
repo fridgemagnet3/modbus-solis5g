@@ -267,10 +267,10 @@ static bool SimulateBusTransaction(const char *Device, uint32_t &Elapsed)
   // Primarily this is about simulating the timing behaviour. There are 13 distinct
   // Modbus transactions performed occurring at anywhere from 136ms thru 242ms apart
   // overall the time taken is around 7s
-  const uint32_t TransactCount = 13u ;
+  const uint32_t TransactCount = 22u ;
   const uint32_t TransactSize = __read_transact_bin_len / TransactCount ;
   uint8_t *Ptr = __read_transact_bin ;
-  const uint32_t TransactDelay = 600 ; 
+  const uint32_t TransactDelay = 800 ; 
 
   printf("Performing logger read register transactions\n");
   for(uint32_t i=0 ; i < TransactCount ; i++ )
