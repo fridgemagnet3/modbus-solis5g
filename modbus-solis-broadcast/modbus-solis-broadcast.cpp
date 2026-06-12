@@ -378,9 +378,9 @@ static HANDLE OpenW32Serial(const char *Device, int Flags)
   }
   else
   {
-    CTimeouts.ReadIntervalTimeout = 200;
-    CTimeouts.ReadTotalTimeoutMultiplier = 10; 
-    CTimeouts.ReadTotalTimeoutConstant = 50;
+    CTimeouts.ReadIntervalTimeout = 100;
+    CTimeouts.ReadTotalTimeoutMultiplier = 0; 
+    CTimeouts.ReadTotalTimeoutConstant = 1;
   }
   if (!SetCommTimeouts(hComm, &CTimeouts))
   {
