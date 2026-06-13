@@ -21,6 +21,11 @@ typedef struct {
   double   psum;   // grid in/out (kW)
   double  familyLoadPower; // load (kW)
   double   etoday;  // generation today (kW)
+  uint32_t batteryTotalChargeEnergy; // battery total charge (kWh)
+  uint32_t batteryTotalDischargeEnergy;  // battery total discharge (kWh)
+  uint32_t gridPurchasedTotalEnergy; // grid imported total (kWh)
+  uint32_t gridSellTotalEnergy; // grid exported total (kWh)
+  uint32_t eTotal; // solar generation total
 } ModbusSolisRegister_t;
 
 // state machine...
@@ -38,7 +43,7 @@ static struct sockaddr_in BroadcastAddr ;
 static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters,unsigned long &Elapsed)
 {
   uint8_t Rc ;
-  bool Ret = false;
+  bool Ret = true ;
   const uint32_t TransactDelay = 80u ; // delay between each register request
   unsigned long StartTransact = millis() ;
 
@@ -67,11 +72,16 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
     // 3.5 character delay should be present between requests. This also helps (I think) in terms of discarding any frameing errors
     // injected by the transceivers turning on and off
     delay(TransactDelay);
-    
-    // three further register reads are required to get the remaining info...
+  }
+  else
+  {
+    Serial.printf("readInputRegisters 33135-33150: %x\n", Rc) ;
+    Ret = false ;
+  }
+
+  if ( Ret )
+  {
     // 33057:33058: Current Generation
-    // 33263:33264: Meter total active power
-    // 33035 Current generation today
     Rc = ModbusInst.readInputRegisters(33057,2) ;
     if ( Rc == ModbusInst.ku8MBSuccess)
     {
@@ -79,31 +89,78 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
       ModbusSolisRegisters->pac = (double)Generation / 1000 ;  // return as kW
 
       delay(TransactDelay);
-      Rc = ModbusInst.readInputRegisters(33263,2) ;
-      if ( Rc == ModbusInst.ku8MBSuccess)
-      {
-        int32_t ActivePower = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1) ;
-        ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
-
-        delay(TransactDelay);
-        Rc = ModbusInst.readInputRegisters(33035,1) ;
-        if ( Rc == ModbusInst.ku8MBSuccess)
-        {
-          // expressed in 0.1kWh intervals
-          ModbusSolisRegisters->etoday = (float)(ModbusInst.getResponseBuffer(0))*0.1;
-          Ret = true;
-        }
-        else
-          Serial.printf("readInputRegisters 33035: %x\n", Rc) ;
-      }
-      else
-        Serial.printf("readInputRegisters 33263: %x\n", Rc) ;
     }
     else
+    {
       Serial.printf("readInputRegisters 33057: %x\n", Rc) ;
+      Ret = false ;
+    }
+  }
+
+  if ( Ret )
+  {
+    // 33263:33264: Meter total active power
+    Rc = ModbusInst.readInputRegisters(33263,2) ;
+    if ( Rc == ModbusInst.ku8MBSuccess)
+    {
+      int32_t ActivePower = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1) ;
+      ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
+
+      delay(TransactDelay);
+    }
   }
   else
-    Serial.printf("readInputRegisters 33135-33150: %x\n", Rc) ;
+  {
+    Serial.printf("readInputRegisters 33263: %x\n", Rc) ;
+    Ret = false ;
+  }
+
+  if (Ret)
+  {
+    const int NoRegisters = 7;
+
+    // 33029-33030: Inverter total power generation
+    // 33035:       Intverter power generation today
+    Rc = ModbusInst.readInputRegisters(33029, NoRegisters);
+    if (Rc == ModbusInst.ku8MBSuccess)
+    {
+      // expressed in kWh
+      ModbusSolisRegisters->eTotal = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1) ;
+      // expressed in 0.1kWh intervals
+      ModbusSolisRegisters->etoday = (float)(ModbusInst.getResponseBuffer(6))*0.1;
+
+      delay(TransactDelay);
+    }
+    else
+    {
+      Serial.printf("readInputRegisters 33029: %x\n", Rc);
+      Ret = false;
+    }
+  }
+
+  if (Ret)
+  {
+    const int NoRegisters = 14;
+
+    // 33161:33162 - Battery charge total
+    // 33165:33166 - Battery discharge total
+    // 33169:33170 - Grid power imported total
+    // 33173:33174 - Power exported from grid total
+    Rc = ModbusInst.readInputRegisters(33161, NoRegisters);
+    if (Rc == ModbusInst.ku8MBSuccess)
+    {
+      // expressed in 1kWh intervals
+      ModbusSolisRegisters->batteryTotalChargeEnergy = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1) ;
+      ModbusSolisRegisters->batteryTotalDischargeEnergy = (ModbusInst.getResponseBuffer(4) << 16) + ModbusInst.getResponseBuffer(5) ;
+      ModbusSolisRegisters->gridPurchasedTotalEnergy = (ModbusInst.getResponseBuffer(8) << 16) + ModbusInst.getResponseBuffer(9) ;
+      ModbusSolisRegisters->gridSellTotalEnergy = (ModbusInst.getResponseBuffer(12) << 16) + ModbusInst.getResponseBuffer(13);
+    }
+    else
+    {
+      Serial.printf("readInputRegisters 33163: %x\n", Rc);
+      Ret = false;
+    }
+  }
 
   Elapsed = millis() - StartTransact ;
 
@@ -153,6 +210,13 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uin
     Node = cJSON_CreateString("kW");
     if (Node)
       cJSON_AddItemToObject(SolarData, "eTodayStr", Node);
+    // eTotal - total solar generation
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->eTotal);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTotal", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTotalStr", Node);
 
     // generation
     Node = cJSON_CreateNumber(ModbusSolisRegisters->pac);
@@ -187,6 +251,36 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uin
     Node = cJSON_CreateString("kW");
     if (Node)
       cJSON_AddItemToObject(SolarData, "familyLoadPowerStr", Node);
+
+    // battery charge/discharge
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTotalChargeEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalChargeEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalChargeEnergyStr", Node);
+
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTotalDischargeEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalDischargeEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalDischargeEnergyStr", Node);
+
+    // grid today in/out
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridPurchasedTotalEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTotalEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTotalEnergyStr", Node);
+
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridSellTotalEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridSellTotalEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridSellTotalEnergyStr", Node);
   }
 
   // the outer pieces
@@ -306,13 +400,44 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   ResponseBuf[3] = ModBusCrc.calc() & 0xff;
   ResponseBuf[4] = ModBusCrc.calc() >> 8 ;
 
-  delay(150) ;
+  delay(80) ;
   ModbusPreTransmit() ;
   Serial2.write(ResponseBuf, sizeof(ResponseBuf)) ;
   Serial2.flush(true) ;
   ModbusPostTransmit() ;
 
   return ReqSlave;
+}
+
+static uint32_t CheckWifiConnection(void)
+{
+  unsigned long StartTime = millis() ;
+  uint32_t Elapsed = 0u ;
+
+  // check wifi still connected
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("Lost Wifi connection, attempting reconnect");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      uint32_t Retries = 20 ;
+
+      delay(500);
+      Serial.print(F("."));
+
+      Retries-- ;
+      if ( !Retries )
+      {
+        Serial.println("Failed to reconnect to Wifi, restarting board...") ;
+        ESP.restart() ;
+      }
+    }
+    Elapsed = millis() - StartTime ;
+  }
+
+  return Elapsed ;
 }
 
 void setup() 
@@ -329,10 +454,10 @@ void setup()
 
   // modbus serial
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
-  // set rx timeout to ~200ms
+  // set rx timeout to ~100ms
   // This *should* ensure every read call gives us a single Modbus request
   // and possibly the response although we don't really care about those
-  Serial2.setTimeout(200) ;
+  Serial2.setTimeout(100) ;
 
   ModbusInst.begin(MODBUS_SLAVE_ID,Serial2);
   // setup the callbacks for enabling/disabling the transceivers
@@ -375,7 +500,7 @@ void setup()
 void loop() 
 {
   uint8_t ScratchBuf[256] ;
-  static unsigned long InitTime, SyncTime ;
+  static unsigned long InitTime, SyncStart, SyncEnd ;
   static unsigned long BusIdleTime = 8000u ; 
   const unsigned long LoggerTimeout = 300*1000u ;  // 5min
   const uint32_t PollDelay = 16000;  // 16s
@@ -393,6 +518,7 @@ void loop()
     case SYNC_INIT :
 
       Serial.println("Sync with logger...");
+      InitTime = millis() ;
       SolisState = SYNC_LOGGER ;
       break ;
 
@@ -403,7 +529,7 @@ void loop()
       if (Serial2.available() )
       {
         SolisState = CONSUME_LOGGER ;
-        InitTime = millis() ;
+        SyncStart = millis() ;
         Serial.println("Consume logger data...");
       }
       else
@@ -455,32 +581,37 @@ void loop()
         // had no data for 200ms
         SolisState = WAIT_IDLE ;
         // save time at which data stops arriving
-        SyncTime = millis() ;
+        SyncEnd = millis() ;
       }
       break ;
 
     case WAIT_IDLE :
 
-      // wait for 8s period of inactivity
+      // wait for 'BusIdleTime' period of inactivity
       if (Serial2.available() )
         SolisState = CONSUME_LOGGER ;
-      else if ( (millis() - SyncTime) > BusIdleTime )  // test for ~8s of inactivity ie. no data received in this period
+      else if ( (millis() - SyncEnd) > BusIdleTime )  // test for required period of inactivity ie. no data received in this time frame
       {
         // bus is now clear
         SolisState = MODBUS_REQUEST ;
-        Elapsed = millis()-InitTime ;
+        Elapsed = millis()-SyncStart ;
 
         Serial.printf("Elapsed: %u seconds\n", Elapsed/1000u);
 
         // work out how much time we have till the next logger poll is due
         if ( Elapsed < LoggerTimeout )
         {
-          const unsigned long MinElapsed = 60*1000 ;
+          const uint32_t MinElapsed = 50*1000 ;
+          const uint32_t InterruptedMaxTimeToPoll = 150 * 1000;
 
-          // handle the (most likely startup) condition where we happen to 
+          // handle the (most likely only at startup) condition where we happen to 
           // immediately detect traffic & therefore get a much shorter than expected elapsed time
+          // If we detect *all* the logger traffic, Elapsed should be ~55s so allowing for a margin of
+          // error, if less than that, then we've only picked up some of it. Worst case (assuming we've
+          // just caught the tail end), the next poll will be about 2m55s later so again allowing for 
+          // a margin of error, 150s (2.5mins) should be fine
           if ( Elapsed < MinElapsed )
-            TimeToNextPoll = LoggerTimeout - MinElapsed ;
+            TimeToNextPoll = InterruptedMaxTimeToPoll;
           else
             TimeToNextPoll = LoggerTimeout - Elapsed;
         }
@@ -514,6 +645,12 @@ void loop()
             Serial.printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
             Serial.printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
             Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
+            Serial.printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
+            Serial.printf("Battery total charge: %u kW\n", ModbusSolisRegisters.batteryTotalChargeEnergy);
+            Serial.printf("Battery total discharge: %u kW\n", ModbusSolisRegisters.batteryTotalDischargeEnergy);
+            Serial.printf("Grid power imported total: %u kW\n", ModbusSolisRegisters.gridPurchasedTotalEnergy);
+            Serial.printf("Grid power exported total: %u kW\n", ModbusSolisRegisters.gridSellTotalEnergy);
+            Serial.printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
 
             // generate the JSON data, aligned to the Solis API
             jSon = GenerateJson(&ModbusSolisRegisters,LoggerFail);
@@ -530,6 +667,8 @@ void loop()
         }
         else
           Serial.printf("Failed to retrieve modbus data from inverter\n");
+
+        Elapsed+=CheckWifiConnection() ;
 
         // update how much time we have left till the next poll
         if (TimeToNextPoll > (PollDelay+Elapsed))
