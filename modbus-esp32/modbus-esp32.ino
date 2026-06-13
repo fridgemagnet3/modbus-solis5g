@@ -9,8 +9,13 @@
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 #include <CRC16.h>
+#include <alloca.h>
 
 // Module: ESP32-WROOM-DA Module
+
+// maxm. no of TCP clients we can handle
+#define MAX_MODBUS_TCP_CLIENTS 10
+
 
 // info we're interested in from the inverter - matches JSON names
 // used by the Solis API
@@ -38,6 +43,9 @@ static ModbusMaster ModbusInst;
 // UDP broadcast stuff
 static int sFd = -1 ;
 static struct sockaddr_in BroadcastAddr ; 
+
+// array of connected modbus clients
+static int ModbusTCPClients[MAX_MODBUS_TCP_CLIENTS];
 
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters,unsigned long &Elapsed)
@@ -168,12 +176,12 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
 }
 
 // generate JSON message aligned to Solis API from the register data
-static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uint32_t LoggerFail)
+static bool GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uint32_t LoggerFail, char *JsonBuf, uint32_t JsonBufSz)
 {
   cJSON *SolarJson = cJSON_CreateObject();
   cJSON *Node;
   cJSON *SolarData;
-  char *Ret;
+  int Rc ;
   time_t TimeStamp ;
   char TimeBuf[80] ;
 
@@ -297,10 +305,173 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uin
   if (Node)
     cJSON_AddItemToObject(SolarJson, "loggerFail", Node);
 
-  // generate return string
-  Ret = cJSON_Print(SolarJson);
+  // generate JSON string for return
+  Rc = cJSON_PrintPreallocated(SolarJson,JsonBuf,JsonBufSz,1) ;
+
   cJSON_Delete(SolarJson);
-  return Ret;
+  return Rc ? true : false ;
+}
+
+// service next pending Modbus TCP client request
+static bool ServiceModbusTcpClient(int Sfd)
+{
+  uint8_t Frame[1400];
+  bool ValidClient = false;
+
+  // read the request
+  auto Bytes = recv(Sfd, (void*)Frame, sizeof(Frame), 0);
+  if (Bytes < 0)
+    Serial.println("ServiceModbusTcpClient: recv failed");
+  else if (!Bytes)
+  {
+    Serial.println("Client has closed connection\n");
+  }
+  else
+    ValidClient = true;
+
+  // nothing to do 
+  if (!ValidClient)
+    return false;
+
+  return ValidClient ;
+}
+
+// create TCP server for operating as a modbus slave/forwarder
+static int CreateModbusTCPServer(void)
+{
+  struct sockaddr_in ServerAddr;
+  int Sfd;
+  socklen_t SLen;
+
+  memset(&ServerAddr, 0, sizeof(ServerAddr));
+
+  ServerAddr.sin_family = AF_INET;
+  ServerAddr.sin_port = htons(502);  // default modbus TCP port
+  ServerAddr.sin_addr.s_addr = INADDR_ANY;
+
+  Sfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (Sfd < 0)
+  {
+    perror("socket: ");
+    return Sfd;
+  }
+
+  const int Enable = 1;
+
+  setsockopt(Sfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&Enable, sizeof(int));
+
+  SLen = sizeof(ServerAddr);
+  if (bind(Sfd, (struct sockaddr*)&ServerAddr, SLen) < 0)
+  {
+    Serial.println("TCP bind error");
+    close(Sfd);
+    return -1;
+  }
+  if (listen(Sfd, MAX_MODBUS_TCP_CLIENTS) < 0)
+  {
+    Serial.println("TCP listen error");
+    close(Sfd);
+    return -1;
+  }
+
+  return Sfd;
+}
+
+// thread used to service modbus TCP clients
+static void ModbusTcpServiceThread(void *Params)
+{
+  // create Modbus TCP server for handling remote requests
+  int ServerSfd = CreateModbusTCPServer() ;
+  fd_set FdSet;
+  int MaxSfd = ServerSfd;
+
+  if ( MaxSfd > 0 )
+    Serial.println("Modbus TCP server listening on port 502");
+
+  while (ServerSfd > 0 )
+  {
+    // add server to the select list
+    FD_ZERO(&FdSet);
+    FD_SET(ServerSfd, &FdSet);
+
+    // add connected clients to the polling list
+    for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
+    {
+      if (ModbusTCPClients[i])
+      {
+        FD_SET(ModbusTCPClients[i], &FdSet);
+        if (ModbusTCPClients[i] > MaxSfd)
+          MaxSfd = ModbusTCPClients[i];
+      }
+    }
+
+    // see if any require our attention
+    int Rc = select(MaxSfd + 1, &FdSet, nullptr, nullptr, nullptr);
+    if (Rc > 0)
+    {
+      // new client connection?
+      if (FD_ISSET(ServerSfd, &FdSet))
+      {
+        // accept the connection
+        int Sfd = accept(ServerSfd, nullptr, 0);
+
+        Serial.println("New client connection");
+
+        if (Sfd < 0)
+          Serial.println("TCP accept error");
+        else
+        {
+          // find a free slot in the list of client connections
+          // and add it
+          bool AcceptClient = false;
+
+          for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
+          {
+            if (!ModbusTCPClients[i])
+            {
+              ModbusTCPClients[i] = Sfd;
+              AcceptClient = true;
+              break;
+            }
+          }
+          if (!AcceptClient)
+          {
+            Serial.println("Max no of client connections exceeded\n");
+            close(Sfd);
+          }
+          else
+          {
+            // disable Naggle algorithm so the response packets get sent out immediately
+            const int Disable = 1;
+            setsockopt(Sfd, IPPROTO_TCP, TCP_NODELAY, (const void*)&Disable, sizeof(int));
+          }
+        }
+      }
+
+      // any clients require attention?
+      for (uint32_t i = 0; i < MAX_MODBUS_TCP_CLIENTS; i++)
+      {
+        if (ModbusTCPClients[i] >= 0)
+        {
+          if (FD_ISSET(ModbusTCPClients[i], &FdSet))
+          {
+            // service the request
+            if (!ServiceModbusTcpClient(ModbusTCPClients[i]))
+            {
+              close(ModbusTCPClients[i]);
+              ModbusTCPClients[i] = 0;
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+      Serial.println("TCP select error");
+      break;
+    }
+  }
+  vTaskDelete(NULL);
 }
 
 static void GetNtpTime(void)
@@ -454,7 +625,7 @@ void setup()
 
   // modbus serial
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
-  // set rx timeout to ~100ms
+  // set rx timeout to ~00ms
   // This *should* ensure every read call gives us a single Modbus request
   // and possibly the response although we don't really care about those
   Serial2.setTimeout(100) ;
@@ -494,6 +665,13 @@ void setup()
     BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
     BroadcastAddr.sin_port = htons(52005);
   }
+
+  // create task for servcing Modbus TCP clients
+  TaskHandle_t TcpTaskHandle ;
+
+  xTaskCreate(ModbusTcpServiceThread,"ModbusTCP", 8192, NULL, 1, &TcpTaskHandle ) ;
+  if ( !TcpTaskHandle )
+    Serial.println("Failed to create Modbus TCP server task") ;
   Serial.println("Setup done");
 }
 
@@ -507,7 +685,7 @@ void loop()
   const uint32_t PollThreshold = 5000u;  // 5 seconds
   size_t BytesRead ;
   ModbusSolisRegister_t ModbusSolisRegisters;
-  char *jSon;
+  char jSon[1024];
   static uint32_t LoggerFail = 0u ;
   static bool Slave10Tx = false ;
   unsigned long Elapsed ;
@@ -653,14 +831,12 @@ void loop()
             Serial.printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
 
             // generate the JSON data, aligned to the Solis API
-            jSon = GenerateJson(&ModbusSolisRegisters,LoggerFail);
-            if (jSon)
+            if (GenerateJson(&ModbusSolisRegisters,LoggerFail,jSon,sizeof(jSon)))
             {
               Serial.printf("JSON data: %s:\n", jSon);
 
-              if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
-                Serial.println("Failed to send broadcast packet") ;
-              free(jSon);
+              //if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
+              //  Serial.println("Failed to send broadcast packet") ;
             }
             else
               Serial.printf("Failed to encode JSON data\n");
