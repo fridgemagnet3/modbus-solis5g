@@ -134,6 +134,10 @@ public :
   // create a modbus RTU session 
   static modbus_t *CreateModbusRtuSession(const char *Device, uint8_t Slave = 1);
 
+#ifdef RPI
+  static void RTSHandler(modbus_t *Ctx, int On) ;
+#endif
+
 private :
 
   // is register in the range defined by this ADU
@@ -144,10 +148,6 @@ private :
     else
       return false;
   }
-
-#ifdef RPI
-  static void RTSHandler(modbus_t *Ctx, int On) ;
-#endif
 
   // type of transaction
   typedef enum { COILS, DISCRETES, HOLDING_REGISTERS, INPUT_REGISTERS } Transaction_t;

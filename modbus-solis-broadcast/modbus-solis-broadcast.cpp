@@ -299,7 +299,7 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
   ResponseBuf[4] = ModBusCrc.checksum() >> 8 ;
 
 #ifdef RPI
-  RTSHandler(nullptr,1) ;
+  ModbusTcpAdu::RTSHandler(nullptr,1) ;
 #else
   Sleep(10);
 #endif
@@ -313,7 +313,7 @@ static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t Slav
 #endif
 
 #ifdef RPI
-  RTSHandler(nullptr,0) ;
+  ModbusTcpAdu::RTSHandler(nullptr,0) ;
 #else
   // a delay may/may not be required here depending on how reliable 'tcdrain' actually is
   Sleep(30);

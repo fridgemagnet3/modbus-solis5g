@@ -486,7 +486,7 @@ bool ModbusTcpAdu::InvalidateAdu(const ModbusTcpAdu &Other)
 
 #ifdef RPI
 // RTS handler used to control the RS485 direction GPIO
-static void ModbusTcpAdu::RTSHandler(modbus_t *Ctx, int On)
+void ModbusTcpAdu::RTSHandler(modbus_t *Ctx, int On)
 {
   if (On)
   {
