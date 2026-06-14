@@ -79,6 +79,27 @@ static boost::mutex ModbusClientMutex;
 
 static bool ServiceModbusTcpClient(SOCKET Sfd);
 
+// Perform a Modbus read input registers, then if successful update any ADU transactions
+// that include the register data in this request. This is purely an optimisation piece, since
+// we've just read new data as part of the UDP broadcast logic, may as well freshen any existing...
+static int ModbusReadInputUpdateCached(modbus_t *Ctx, uint16_t Address, uint16_t Count, uint16_t *RegBank)
+{
+  int Rc = modbus_read_input_registers(Ctx, Address, Count, RegBank);
+
+  if (Rc == Count)
+  {
+    boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
+
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      for (uint16_t i = 0; i < Count; i++)
+      {
+        (*It)->UpdateRegisterReadData(Address + i, RegBank[i], ModbusTcpAdu::INPUT_REGISTERS);
+      }
+    }
+  }
+  return Rc;
+}
 
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, 
@@ -107,7 +128,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   // 33139: Battery capacity SOC
   // 33147: House load power
   // 33149:33150: Battery power
-  Rc = modbus_read_input_registers(Ctx, 33135, sizeof(RegBank) / sizeof(uint16_t), RegBank);
+  Rc = ModbusReadInputUpdateCached(Ctx, 33135, sizeof(RegBank) / sizeof(uint16_t), RegBank);
   if (Rc == sizeof(RegBank) / sizeof(uint16_t))
   {
     ModbusSolisRegisters->batteryCapacitySoc = RegBank[4]; // 33139
@@ -127,7 +148,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   if (Ret)
   {
     // 33057:33058: Current Generation
-    Rc = modbus_read_input_registers(Ctx, 33057, sizeof(uint32_t) / sizeof(uint16_t), RegBank);
+    Rc = ModbusReadInputUpdateCached(Ctx, 33057, sizeof(uint32_t) / sizeof(uint16_t), RegBank);
     if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
     {
       uint32_t Generation = (RegBank[0] << 16) + RegBank[1];   // expressed in watts
@@ -143,7 +164,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
   if (Ret)
   {
     // 33263:33264: Meter total active power
-    Rc = modbus_read_input_registers(Ctx, 33263, sizeof(int32_t) / sizeof(uint16_t), RegBank);
+    Rc = ModbusReadInputUpdateCached(Ctx, 33263, sizeof(int32_t) / sizeof(uint16_t), RegBank);
     if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
     {
       int32_t ActivePower = MODBUS_GET_INT32_FROM_INT16(RegBank, 0);
@@ -162,7 +183,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
 
     // 33029-33030: Inverter total power generation
     // 33035:       Intverter power generation today
-    Rc = modbus_read_input_registers(Ctx, 33029, NoRegisters, RegBank);
+    Rc = ModbusReadInputUpdateCached(Ctx, 33029, NoRegisters, RegBank);
     if (Rc == NoRegisters)
     {
       // expressed in kWh
@@ -185,7 +206,7 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
     // 33165:33166 - Battery discharge total
     // 33169:33170 - Grid power imported total
     // 33173:33174 - Power exported from grid total
-    Rc = modbus_read_input_registers(Ctx, 33161, NoRegisters, RegBank);
+    Rc = ModbusReadInputUpdateCached(Ctx, 33161, NoRegisters, RegBank);
     if (Rc == NoRegisters)
     {
       // expressed in 1kWh intervals
@@ -1295,8 +1316,8 @@ int main(int argc, char *argv[])
 
           // send out to clients
           BroadcastAddr.sin_port = htons(52005);
-          if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
-            perror("sendto");
+          //if (sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0)
+          //  perror("sendto");
           free(jSon);
         }
         else

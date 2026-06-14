@@ -20,7 +20,10 @@ typedef int SOCKET;
 class ModbusTcpAdu
 {
 public :
-  
+
+  // type of transaction
+  typedef enum { COILS, DISCRETES, HOLDING_REGISTERS, INPUT_REGISTERS } Transaction_t;
+
   // constructor
   ModbusTcpAdu(SOCKET Sfd, const uint8_t *Frame, uint32_t Len);
 
@@ -86,6 +89,22 @@ public :
     }
   }
 
+  // update register read data with new
+  bool UpdateRegisterReadData(uint16_t Address, uint16_t Data, Transaction_t Transaction)
+  {
+    // only applies if ADU has already been processed, not a write and the register is
+    // part of this transaction
+    if (Processed && !IsWriteTransaction() && Transaction == this->Transaction && IsRegisterInRange(Address))
+    {
+      uint16_t Offset = Address - RegisterAddress;
+
+      RegisterData[Offset] = Data;
+
+      return true;
+    }
+    return false;
+  }
+
   // perform the RTU transaction for this request
   bool PerformRTUTransaction(const char *Device);
 
@@ -148,9 +167,6 @@ private :
     else
       return false;
   }
-
-  // type of transaction
-  typedef enum { COILS, DISCRETES, HOLDING_REGISTERS, INPUT_REGISTERS } Transaction_t;
 
   // client socket
   SOCKET Sfd;
