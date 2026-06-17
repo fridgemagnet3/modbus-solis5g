@@ -10,7 +10,7 @@ As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast)
 
 [i6]: https://github.com/fridgemagnet3/modbus-solis5g/issues/6
 
-This branch is a work in progress to provide an update that works with 10154 (or whatever version the above change occurred in) and newer firmware. See ([#6][i6]) for the current status.
+**This branch is a work in progress to provide an update that works with 13230 firmware.** It _may_ also work with older and newer (if they exist) versions however no guarantees. See ([#6][i6]) for the current status.
 
 ## Background
 
