@@ -15,12 +15,10 @@ class JsonHeap
 {
   public:
 
-    JsonHeap()
+    JsonHeap() : Ptr(Heap),Remain(HEAP_SIZE)
     {
       cJSON_Hooks Hooks ;
 
-      Ptr = Heap ;
-      Remain = HEAP_SIZE ;
       Instance = this ;
       Hooks.malloc_fn = Alloc ;
       Hooks.free_fn = Delete ;
@@ -50,9 +48,8 @@ class JsonHeap
         Ret = Ptr ;
         Remain-=Sz ;
         Ptr+=Sz ;
-        return Ret ;
       }
-      return nullptr ;
+      return Ret ;
     }
   
     uint8_t Heap[HEAP_SIZE] ;

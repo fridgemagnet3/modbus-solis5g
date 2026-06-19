@@ -12,7 +12,7 @@ const uint8_t ModbusTcpAdu::FCodeWriteSingle = 6;
 const uint8_t ModbusTcpAdu::FCodeWriteCoil = 5;
 const uint8_t ModbusTcpAdu::FCodeWriteMultiple = 16; 
 
-std::map<uint8_t,std::string> ModbusTcpAdu::FunctionDescriptions;
+std::map<uint8_t,const char*> ModbusTcpAdu::FunctionDescriptions;
 
 // memory pool
 static uint8_t MemPool[MAX_ADUS][sizeof(ModbusTcpAdu)] ;
@@ -27,21 +27,19 @@ void ModbusTcpAdu::MemPoolInit(void)
     void *Ptr = &MemPool[i];
     xQueueSend(PoolQueue, &Ptr, 0);
   }
+
+  // initialise description lookup - used for diagnostic reporting
+  FunctionDescriptions[FCodeReadDiscrete] = "Read Discrete Inputs";
+  FunctionDescriptions[FCodeReadHolding] = "Read Holding Registers";
+  FunctionDescriptions[FCodeReadInput] = "Read Input Registers";
+  FunctionDescriptions[FCodeWriteSingle] = "Write Single Register";
+  FunctionDescriptions[FCodeWriteCoil] = "Write Single Coil";
+  FunctionDescriptions[FCodeWriteMultiple] = "Write Multiple Registers";
 }
 
 // attempt to construct a modbus TCP ADU from the supplied frame data
 ModbusTcpAdu::ModbusTcpAdu(int Sfd, const uint8_t *Frame, uint32_t Len) : Sfd(Sfd)
 {
-  // initialise description lookup on first run - used for diagnostic reporting
-  if (FunctionDescriptions.empty())
-  {
-    FunctionDescriptions[FCodeReadDiscrete] = "Read Discrete Inputs";
-    FunctionDescriptions[FCodeReadHolding] = "Read Holding Registers";
-    FunctionDescriptions[FCodeReadInput] = "Read Input Registers";
-    FunctionDescriptions[FCodeWriteSingle] = "Write Single Register";
-    FunctionDescriptions[FCodeWriteCoil] = "Write Single Coil";
-    FunctionDescriptions[FCodeWriteMultiple] = "Write Multiple Registers";
-  }
   WriteMutex = xSemaphoreCreateMutexStatic( &MutexBuffer );
 
   // minimum frame length for the protocol header

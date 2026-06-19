@@ -398,7 +398,10 @@ static bool ServiceModbusTcpClient(int Sfd)
     // need to add this to the list of pending requests?
     if (AddNewRequest && ValidClient)
     {
-      Serial.printf("Add new transaction: %s\n", Adu->GetTransactionString().c_str());
+      char TransactDesc[256] ;
+
+      Adu->GetTransactionString(TransactDesc,sizeof(TransactDesc)) ;
+      Serial.printf("Add new transaction: %s\n", TransactDesc);
       ModbusClientRequests.push_back(Adu);
     }
     else

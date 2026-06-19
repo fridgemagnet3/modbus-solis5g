@@ -3,7 +3,6 @@
 #define MODBUS_TCP_ADU_H
 
 #include <stdint.h>
-#include <sstream>
 #include <map>
 #include <string.h>
 #include <freertos/FreeRTOS.h>
@@ -155,13 +154,10 @@ public :
   bool InvalidateAdu(const ModbusTcpAdu &Other);
 
   // generate string with transaction info - for diag purposes
-  std::string GetTransactionString(void)
+  void GetTransactionString(char *Buf, uint32_t BufSz)
   {
-    std::stringstream Buf;
-
-    Buf << FunctionDescriptions[FunctionCode] << " (" << (uint32_t)FunctionCode << "), RegBase: " << RegisterAddress << " Count: " << RegisterCount;
-
-    return Buf.str();
+    snprintf(Buf,BufSz, "%s (%hu) RegBase: %hu: Count: %hu", 
+        FunctionDescriptions[FunctionCode], (uint16_t)FunctionCode, RegisterAddress, RegisterCount) ;
   }
 
 private :
@@ -214,7 +210,7 @@ private :
   static const uint8_t FCodeWriteSingle;
   static const uint8_t FCodeWriteMultiple;
 
-  static std::map<uint8_t,std::string> FunctionDescriptions;
+  static std::map<uint8_t,const char*> FunctionDescriptions;
 
   static QueueHandle_t PoolQueue ;
 };
