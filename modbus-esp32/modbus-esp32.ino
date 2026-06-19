@@ -9,12 +9,14 @@
 #include <lwip/sys.h>
 #include <lwip/netdb.h>
 #include <CRC16.h>
-#include <alloca.h>
+#include <vector>
+#include "json_heap.h"
+#include "modbus_tcp_adu.h"
 
 // Module: ESP32-WROOM-DA Module
 
 // maxm. no of TCP clients we can handle
-#define MAX_MODBUS_TCP_CLIENTS 10
+#define MAX_MODBUS_TCP_CLIENTS 5
 
 
 // info we're interested in from the inverter - matches JSON names
@@ -46,6 +48,10 @@ static struct sockaddr_in BroadcastAddr ;
 
 // array of connected modbus clients
 static int ModbusTCPClients[MAX_MODBUS_TCP_CLIENTS];
+// pending client requests
+static std::vector<ModbusTcpAdu*> ModbusClientRequests;
+// mutex used to lock access to the ModbusClientRequests vector
+static SemaphoreHandle_t ModbusClientMutex;
 
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters,unsigned long &Elapsed)
@@ -178,13 +184,15 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
 // generate JSON message aligned to Solis API from the register data
 static bool GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters, uint32_t LoggerFail, char *JsonBuf, uint32_t JsonBufSz)
 {
-  cJSON *SolarJson = cJSON_CreateObject();
+  JsonHeap SAllocator ;  // overrides cJson memory allocaters so they're now on the stack
   cJSON *Node;
   cJSON *SolarData;
   int Rc ;
   time_t TimeStamp ;
   char TimeBuf[80] ;
 
+  cJSON *SolarJson = cJSON_CreateObject();
+    
   // response code
   Node = cJSON_CreateString("0");
   if ( Node )
@@ -333,6 +341,74 @@ static bool ServiceModbusTcpClient(int Sfd)
   if (!ValidClient)
     return false;
 
+  // check space for another ADU request, just discard request if not
+  if ( ModbusClientRequests.size() == MAX_ADUS )
+    return true ;
+
+  // try and construct an ADU object from this frame
+  // since TCP is stream oriented, in theory 2 things could go wrong here....
+  // - we could read insufficient data for a complete frame. This is unlikely given how small they are
+  // - we could read > 1 frame, this shouldn't happen because the client should wait for us to respond to 
+  //   the last request before sending another. 
+  // either way, if those do crop up, we just ignore them & let the client retry
+  ModbusTcpAdu *Adu = new ModbusTcpAdu(Sfd, Frame, Bytes);
+
+  if (Adu->IsValidFrame())
+  {
+    bool AddNewRequest = true;
+    bool Transacted = false;
+
+    // lockout updates to the request list for the duration
+    xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
+
+    // check to see if we've already got an identical request pending
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      if ((*It)->IsIdenticalAdu(*Adu))
+      {
+        auto ExistingAdu = (*It);
+
+        // update the existing transaction write data with new
+        // - if this differs from the existing, will adjust the processed flag accordingly
+        if (Adu->IsWriteTransaction())
+          ExistingAdu->UpdateRegisterData(Adu->GetRegisterData());
+
+        // we have, has it been processed?
+        if (ExistingAdu->IsProcessed())
+        {
+          // yes, send it to the client using the transaction id of this one
+          if (!ExistingAdu->TcpSendResponse(Sfd, Adu->GetTransactionId()))
+            ValidClient = false;
+          Transacted = true;
+        }
+
+        // no need to add this one to the list
+        AddNewRequest = false;
+        break;
+      }
+    }
+
+    // if request didn't get answered, send a "server busy" response back
+    if (!Transacted)
+    {
+      if (!Adu->TcpSendDeviceBusy())
+        ValidClient = false;
+    }
+
+    // need to add this to the list of pending requests?
+    if (AddNewRequest && ValidClient)
+    {
+      Serial.printf("Add new transaction: %s\n", Adu->GetTransactionString().c_str());
+      ModbusClientRequests.push_back(Adu);
+    }
+    else
+      delete Adu;  // request already exists in queue so discard
+
+    xSemaphoreGive(ModbusClientMutex);
+  }
+  else // failed to construct a frame, just return
+    delete Adu;
+
   return ValidClient ;
 }
 
@@ -352,7 +428,7 @@ static int CreateModbusTCPServer(void)
   Sfd = socket(AF_INET, SOCK_STREAM, 0);
   if (Sfd < 0)
   {
-    perror("socket: ");
+    Serial.println("TCP socket error");
     return Sfd;
   }
 
@@ -387,6 +463,9 @@ static void ModbusTcpServiceThread(void *Params)
 
   if ( MaxSfd > 0 )
     Serial.println("Modbus TCP server listening on port 502");
+
+  // fixup the size of the container so we don't trigger reallocations (and possible memory fragmentation)
+  ModbusClientRequests.reserve(MAX_ADUS) ;
 
   while (ServerSfd > 0 )
   {
@@ -666,12 +745,24 @@ void setup()
     BroadcastAddr.sin_port = htons(52005);
   }
 
-  // create task for servcing Modbus TCP clients
-  TaskHandle_t TcpTaskHandle ;
+  // Modbus TCP server setup
 
-  xTaskCreate(ModbusTcpServiceThread,"ModbusTCP", 8192, NULL, 1, &TcpTaskHandle ) ;
-  if ( !TcpTaskHandle )
-    Serial.println("Failed to create Modbus TCP server task") ;
+  // init the memory pool for the ADU class management
+  ModbusTcpAdu::MemPoolInit() ;
+
+  // create mutex to lock access to the ModbusClientRequests vector
+  ModbusClientMutex = xSemaphoreCreateMutex();
+  if ( !ModbusClientMutex )
+    Serial.println("Failed to create Modbus TCP mutex") ;
+  else
+  {
+    // create task for servcing Modbus TCP clients
+    TaskHandle_t TcpTaskHandle ;
+
+    xTaskCreate(ModbusTcpServiceThread,"ModbusTCP", 8192, NULL, 1, &TcpTaskHandle ) ;
+    if ( !TcpTaskHandle )
+      Serial.println("Failed to create Modbus TCP server task") ;
+  }
   Serial.println("Setup done");
 }
 
