@@ -197,7 +197,7 @@ bool ModbusTcpAdu::IsIdenticalAdu(const ModbusTcpAdu &Other, bool IncludeRegiste
 }
 
 // send completed transaction back to the client
-bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId) const
+bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId) 
 {
   uint8_t Frame[1500];
   uint16_t *APtr = (uint16_t*)Frame;
@@ -310,9 +310,12 @@ bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId) const
 
   // send it
   if (send(Sfd, (const char*)Frame, Len, 0) == Len)
-    return true;
-  else
-    return false;
+  {
+    TcpSent = true;
+    TcpSentTime = boost::chrono::steady_clock::now();
+  }
+
+  return TcpSent;
 }
 
 // create a modbus RTU session
@@ -472,13 +475,17 @@ bool ModbusTcpAdu::InvalidateAdu(const ModbusTcpAdu &Other)
   {
     if (IsRegisterInRange(Other.RegisterAddress))
     {
-      Processed = false;
-      return true;
+      if (IsWriteTransaction())
+        return true;
+      else
+        Reset();
     }
     if (Other.IsRegisterInRange(RegisterAddress))
     {
-      Processed = false;
-      return true;
+      if (IsWriteTransaction())
+        return true;
+      else
+        Reset();
     }
   }
   return false;

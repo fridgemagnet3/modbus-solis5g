@@ -66,7 +66,7 @@ public :
   }
 
   // send response frame back to TCP client
-  bool TcpSendResponse( SOCKET Sfd, uint16_t TransactionId) const;
+  bool TcpSendResponse( SOCKET Sfd, uint16_t TransactionId) ;
 
   // get register data
   const std::vector<uint16_t>& GetRegisterData(void) const
@@ -100,6 +100,9 @@ public :
 
       RegisterData[Offset] = Data;
 
+      if (RegisterCount == 1u)
+        ProcessTime = boost::chrono::steady_clock::now();
+
       return true;
     }
     return false;
@@ -109,28 +112,55 @@ public :
   bool PerformRTUTransaction(const char *Device);
 
   // indicates if this ADU is considered stale based on age
-  bool IsStale(void) const
+  bool IsStale(void) 
   {
     if (!Processed)
       return false;
 
-    // write transactions don't ever go stale
-    if (IsWriteTransaction())
-      return false;
+    auto Now = boost::chrono::steady_clock::now();
 
-    // holding registers (apart from the clock) are mostly controls
-    // so shouldn't really change that often
-    if ( Transaction == HOLDING_REGISTERS )
+    if (IsWriteTransaction())
     {
-      if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::minutes(5)))
+      // if the last write request was >5 minutes, mark as stale
+      if (TcpSent && Now > (TcpSentTime + boost::chrono::minutes(5)))
         return true;
+
+      // if the last update was >10 minutes ago (& nothing has requested it since)
+      // mark as stale
+      if (Now > (ProcessTime + boost::chrono::minutes(10)))
+        return true;
+
+      return false;
+    }
+
+    // anything that was last requested >10 minutes ago, stale off
+    if (TcpSent && Now > (TcpSentTime + boost::chrono::minutes(10)))
+      return true;
+
+    // check to see last time we updated the register content and force a refresh if it's getting old
+    if (Transaction == HOLDING_REGISTERS)
+    {
+      if (Now > (ProcessTime + boost::chrono::minutes(5)))
+      {
+        // only refresh if client has actually ever requested it
+        if (TcpSent)
+          Reset();
+        else
+          return true;
+      }
     }
     else
     {
       // fractionally over 1 minute to allow for HA Solis Modbus slow poll interval plus
       // our "normal" poll of 16s
-      if (boost::chrono::steady_clock::now() > (ProcessTime + boost::chrono::seconds(80)))
-        return true;
+      if (Now > (ProcessTime + boost::chrono::seconds(80)))
+      {
+        // only refresh if client has actually ever requested it
+        if (TcpSent)
+          Reset();
+        else
+          return true;
+      }
     }
 
     return false;
@@ -141,7 +171,7 @@ public :
   bool InvalidateAdu(const ModbusTcpAdu &Other);
 
   // generate string with transaction info - for diag purposes
-  std::string GetTransactionString(void)
+  std::string GetTransactionString(void) const
   {
     std::stringstream Buf;
 
@@ -166,6 +196,14 @@ private :
       return true;
     else
       return false;
+  }
+
+  // reset ADU state to unprocessed
+  void Reset(void)
+  {
+    if (!IsWriteTransaction())
+      RegisterData.clear();
+    Processed = false;
   }
 
   // client socket
@@ -194,6 +232,12 @@ private :
 
   // timestamp when this transaction was processed
   boost::chrono::steady_clock::time_point ProcessTime;
+
+  // indicates if this ADU has been sent to a TCP client
+  bool TcpSent = false;
+
+  // timestamp when this transaction was processed
+  boost::chrono::steady_clock::time_point TcpSentTime;
 
   // mutex used to lock write register transactions
   boost::mutex WriteMutex;
