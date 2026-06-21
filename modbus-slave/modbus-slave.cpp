@@ -13,7 +13,7 @@
 #endif
 #include "registers.h"
 #include "read_transact.h"
-#include "write_transact.h"
+#include "holding_transact.h"
 #include <boost/chrono/chrono.hpp>
 #include <boost/date_time.hpp>
 #include <modbus/modbus.h>
@@ -391,6 +391,10 @@ int main(int argc, char *argv[])
   // 33263:33264 : Meter total active power : -0.176000 kW
   for (i = 0; i < registers_bin_len/sizeof(uint16_t); i++)
     ModBusMapping->tab_input_registers[i] = *RegPtr++;
+
+  RegPtr = (uint16_t*)holding_transact_bin; 
+  for (i = 0; i < holding_transact_bin_len/sizeof(uint16_t); i++)
+    ModBusMapping->tab_registers[i] = *RegPtr++;
 
   // set a dummy, non-zero bit count for testing
   ModBusMapping->tab_input_bits[0] = 0x55 ;
