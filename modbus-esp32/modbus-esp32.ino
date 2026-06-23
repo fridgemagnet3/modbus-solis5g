@@ -556,6 +556,103 @@ static void ModbusTcpServiceThread(void *Params)
   vTaskDelete(NULL);
 }
 
+// process next pending modbus request from an external client
+static bool ProcessPendingModbusTcpRequest(uint32_t &Elapsed)
+{
+  ModbusTcpAdu *PendingRequest = nullptr;
+
+  Elapsed = 0u;
+
+  xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
+
+  // check for and remove any stale read data to force a refresh
+  auto StaleReads = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+    [](ModbusTcpAdu *Inst) {
+    if (Inst->IsStale())
+    {
+      delete Inst;
+      return true;
+    }
+    else
+      return false;
+  });
+
+  ModbusClientRequests.erase(StaleReads, ModbusClientRequests.end());
+
+  uint32_t Unprocessed = 0;
+
+  // check to see if we've already got any request pending
+  for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+  {
+    if (!(*It)->IsProcessed())
+    {
+      if (!PendingRequest)
+        PendingRequest = *It;
+      Unprocessed++;
+    }
+  }
+
+  xSemaphoreGive(ModbusClientMutex);
+
+  Serial.printf("ModbusClientRequests total: %lu\n", ModbusClientRequests.size());
+  Serial.printf("ModbusClientRequests unprocessed: %u\n", Unprocessed);
+
+  // nothing pending
+  if (!PendingRequest)
+    return false;
+
+  char Transact[256] ;
+  PendingRequest->GetTransactionString(Transact,sizeof(Transact)) ;
+  Serial.printf("Executing: %s\n", Transact);
+
+  auto StartTransactTime = millis();
+
+  // perform the request. Note that this since this can be time consuming, the client request
+  // lock is deliberately released during this period. This also means that the TCP service
+  // thread must not remove/delete anything in the list - which it doesn't
+  if (!PendingRequest->PerformRTUTransaction(ModbusInst))
+  {
+    // if the request failed, just remove it from the list. The client can retry again if it wants
+    xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      if ((*It) == PendingRequest)
+      {
+        ModbusClientRequests.erase(It);
+        break;
+      }
+    }
+    delete PendingRequest;
+    xSemaphoreGive(ModbusClientMutex);
+  }
+  else if (PendingRequest->IsWriteTransaction())
+  {
+    xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
+
+    // if just performed a write transaction, remove any transactions that have overlapping
+    // register regions as they will now be invalid
+    auto MatchingRequests = std::remove_if(ModbusClientRequests.begin(), ModbusClientRequests.end(),
+      [PendingRequest](ModbusTcpAdu *Inst) {
+      if ((Inst != PendingRequest) && Inst->InvalidateAdu(*PendingRequest))
+      {
+        delete Inst;
+        return true;
+      }
+      else
+        return false;
+    });
+
+    ModbusClientRequests.erase(MatchingRequests, ModbusClientRequests.end());
+
+    xSemaphoreGive(ModbusClientMutex);
+  }
+
+  auto EndTransactTime = millis();
+  Elapsed = EndTransactTime - StartTransactTime;
+
+  return true;
+}
+
 static void GetNtpTime(void)
 {
   const long GmOffsetSec = 0;
@@ -912,31 +1009,31 @@ void loop()
         Serial.println("Issuing request");
         if ( ModBusReadSolisRegisters( &ModbusSolisRegisters, Elapsed ) )
         {
-            Serial.printf("Battery capacity SOC: %u%%\n", ModbusSolisRegisters.batteryCapacitySoc);
-            Serial.printf("Battery power: %f kW\n", ModbusSolisRegisters.batteryPower);
-            Serial.printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
-            Serial.printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
-            Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
-            Serial.printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
-            Serial.printf("Battery total charge: %u kW\n", ModbusSolisRegisters.batteryTotalChargeEnergy);
-            Serial.printf("Battery total discharge: %u kW\n", ModbusSolisRegisters.batteryTotalDischargeEnergy);
-            Serial.printf("Grid power imported total: %u kW\n", ModbusSolisRegisters.gridPurchasedTotalEnergy);
-            Serial.printf("Grid power exported total: %u kW\n", ModbusSolisRegisters.gridSellTotalEnergy);
-            Serial.printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
+          Serial.printf("Battery capacity SOC: %u%%\n", ModbusSolisRegisters.batteryCapacitySoc);
+          Serial.printf("Battery power: %f kW\n", ModbusSolisRegisters.batteryPower);
+          Serial.printf("House load power: %f kW\n", ModbusSolisRegisters.familyLoadPower);
+          Serial.printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
+          Serial.printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
+          Serial.printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
+          Serial.printf("Battery total charge: %u kW\n", ModbusSolisRegisters.batteryTotalChargeEnergy);
+          Serial.printf("Battery total discharge: %u kW\n", ModbusSolisRegisters.batteryTotalDischargeEnergy);
+          Serial.printf("Grid power imported total: %u kW\n", ModbusSolisRegisters.gridPurchasedTotalEnergy);
+          Serial.printf("Grid power exported total: %u kW\n", ModbusSolisRegisters.gridSellTotalEnergy);
+          Serial.printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
 
-            // generate the JSON data, aligned to the Solis API
-            if (GenerateJson(&ModbusSolisRegisters,LoggerFail,jSon,sizeof(jSon)))
-            {
-              Serial.printf("JSON data: %s:\n", jSon);
+          // generate the JSON data, aligned to the Solis API
+          if (GenerateJson(&ModbusSolisRegisters,LoggerFail,jSon,sizeof(jSon)))
+          {
+            Serial.printf("JSON data: %s:\n", jSon);
 
-              //if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
-              //  Serial.println("Failed to send broadcast packet") ;
-            }
-            else
-              Serial.printf("Failed to encode JSON data\n");
+            //if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
+            //  Serial.println("Failed to send broadcast packet") ;
+          }
+          else
+            Serial.println("Failed to encode JSON data");
         }
         else
-          Serial.printf("Failed to retrieve modbus data from inverter\n");
+          Serial.println("Failed to retrieve modbus data from inverter");
 
         Elapsed+=CheckWifiConnection() ;
 

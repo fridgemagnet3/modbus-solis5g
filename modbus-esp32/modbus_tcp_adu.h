@@ -7,10 +7,12 @@
 #include <string.h>
 #include <freertos/FreeRTOS.h>
 #include <Arduino.h>
+#include <ModbusMaster.h>
 
 #define MAX_ADUS 100
 
-#define MAX_REGISTERS 100
+// this matches the upper limit supported by ModbusMaster
+#define MAX_REGISTERS 125
 
 // class holding a Modbus TCP ADU
 
@@ -119,7 +121,7 @@ public :
   }
 
   // perform the RTU transaction for this request
-  bool PerformRTUTransaction(const char *Device);
+  bool PerformRTUTransaction(ModbusMaster &ModbusInst);
 
   // indicates if this ADU is considered stale based on age
   bool IsStale(void) const
