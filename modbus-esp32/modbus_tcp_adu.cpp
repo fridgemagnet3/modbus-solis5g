@@ -384,12 +384,12 @@ bool ModbusTcpAdu::PerformRTUTransaction(ModbusMaster &ModbusInst)
 
     case FCodeWriteMultiple:
 
+      xSemaphoreTake(WriteMutex,portMAX_DELAY) ;
       for(auto i=0u ; i< RegisterCount ; i++)
         ModbusInst.setTransmitBuffer(i,RegisterData[i]);
 
-      xSemaphoreTake(WriteMutex,portMAX_DELAY) ;
       Rc = ModbusInst.writeMultipleRegisters(RegisterAddress,RegisterCount);
-      if (Rc == RegisterCount)
+      if (Rc == ModbusInst.ku8MBSuccess)
         Processed = true;
       xSemaphoreGive(WriteMutex) ;
       break;

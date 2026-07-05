@@ -612,6 +612,8 @@ static bool ProcessPendingModbusTcpRequest(uint32_t &Elapsed)
   // thread must not remove/delete anything in the list - which it doesn't
   if (!PendingRequest->PerformRTUTransaction(ModbusInst))
   {
+    Serial.println("Transaction failed - deleting request") ;
+    
     // if the request failed, just remove it from the list. The client can retry again if it wants
     xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
     for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
@@ -647,8 +649,7 @@ static bool ProcessPendingModbusTcpRequest(uint32_t &Elapsed)
     xSemaphoreGive(ModbusClientMutex);
   }
 
-  auto EndTransactTime = millis();
-  Elapsed = EndTransactTime - StartTransactTime;
+  Elapsed = millis() - StartTransactTime;
 
   return true;
 }
@@ -881,6 +882,7 @@ void loop()
   static bool Slave10Tx = false ;
   unsigned long Elapsed ;
   static unsigned long TimeToNextPoll ;
+  bool ServiceModbusTcp ;
 
   switch (SolisState)
   {
@@ -1006,8 +1008,14 @@ void loop()
 
       if ( TimeToNextPoll )
       {
-        Serial.println("Issuing request");
-        if ( ModBusReadSolisRegisters( &ModbusSolisRegisters, Elapsed ) )
+        ServiceModbusTcp = false ;
+
+        // prioritise servicing next pending TCP request (if any)
+        if ( ProcessPendingModbusTcpRequest(Elapsed))
+        {
+          ServiceModbusTcp = true ;
+        }
+        else if ( ModBusReadSolisRegisters( &ModbusSolisRegisters, Elapsed ) )
         {
           Serial.printf("Battery capacity SOC: %u%%\n", ModbusSolisRegisters.batteryCapacitySoc);
           Serial.printf("Battery power: %f kW\n", ModbusSolisRegisters.batteryPower);
@@ -1031,16 +1039,21 @@ void loop()
           }
           else
             Serial.println("Failed to encode JSON data");
+
+          Elapsed += PollDelay;
         }
         else
+        {
           Serial.println("Failed to retrieve modbus data from inverter");
+          Elapsed += PollDelay;
+        }
 
         Elapsed+=CheckWifiConnection() ;
 
         // update how much time we have left till the next poll
-        if (TimeToNextPoll > (PollDelay+Elapsed))
+        if (TimeToNextPoll > Elapsed)
         {
-          TimeToNextPoll -= (PollDelay+Elapsed);
+          TimeToNextPoll-=Elapsed;
           // don't go down to the wire
           if (TimeToNextPoll < PollThreshold)
             TimeToNextPoll = 0u;
@@ -1049,9 +1062,13 @@ void loop()
           TimeToNextPoll = 0u; 
       }
 
-      // dont't delay on final cycle
+      // don't sleep on the last cycle OR if we've just serviced a TCP request
+      // basically keep going until there are none left
       if ( TimeToNextPoll) 
-        delay(PollDelay);
+      {
+        if ( !ServiceModbusTcp )
+          delay(PollDelay);
+      }
       else
         SolisState = SYNC_INIT ; // back to sync with logger
       break ;
