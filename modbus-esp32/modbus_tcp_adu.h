@@ -115,6 +115,9 @@ public :
 
       RegisterData[Offset] = Data;
 
+      if (RegisterCount == 1u)
+        ProcessTime = millis();
+
       return true;
     }
     return false;

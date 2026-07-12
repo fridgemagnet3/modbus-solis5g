@@ -53,6 +53,30 @@ static std::vector<ModbusTcpAdu*> ModbusClientRequests;
 // mutex used to lock access to the ModbusClientRequests vector
 static SemaphoreHandle_t ModbusClientMutex;
 
+// Perform a Modbus read input registers, then if successful update any ADU transactions
+// that include the register data in this request. This is purely an optimisation piece, since
+// we've just read new data as part of the UDP broadcast logic, may as well freshen any existing...
+static int ModbusReadInputUpdateCached( uint16_t Address, uint16_t Count)
+{
+  int Rc = ModbusInst.readInputRegisters(Address,Count) ;
+
+  if (Rc == ModbusInst.ku8MBSuccess)
+  {
+    xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
+
+    for (auto It = ModbusClientRequests.begin(); It != ModbusClientRequests.end(); ++It)
+    {
+      for (uint16_t i = 0; i < Count; i++)
+      {
+        (*It)->UpdateRegisterReadData(Address + i, ModbusInst.getResponseBuffer(i), ModbusTcpAdu::INPUT_REGISTERS);
+      }
+    }
+
+    xSemaphoreGive(ModbusClientMutex);
+  }
+  return Rc;
+}
+
 // read the required registers from modbus
 static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegisters,unsigned long &Elapsed)
 {
@@ -70,7 +94,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
   // 33139: Battery capacity SOC
   // 33147: House load power
   // 33149:33150: Battery power
-  Rc = ModbusInst.readInputRegisters(33135,16) ;
+  Rc = ModbusReadInputUpdateCached(33135,16) ;
   if ( Rc == ModbusInst.ku8MBSuccess)
   {
     ModbusSolisRegisters->batteryCapacitySoc = ModbusInst.getResponseBuffer(4) ; // 33139
@@ -96,7 +120,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
   if ( Ret )
   {
     // 33057:33058: Current Generation
-    Rc = ModbusInst.readInputRegisters(33057,2) ;
+    Rc = ModbusReadInputUpdateCached(33057,2) ;
     if ( Rc == ModbusInst.ku8MBSuccess)
     {
       uint32_t Generation = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1);   // expressed in watts
@@ -114,7 +138,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
   if ( Ret )
   {
     // 33263:33264: Meter total active power
-    Rc = ModbusInst.readInputRegisters(33263,2) ;
+    Rc = ModbusReadInputUpdateCached(33263,2) ;
     if ( Rc == ModbusInst.ku8MBSuccess)
     {
       int32_t ActivePower = (ModbusInst.getResponseBuffer(0) << 16) + ModbusInst.getResponseBuffer(1) ;
@@ -135,7 +159,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
 
     // 33029-33030: Inverter total power generation
     // 33035:       Intverter power generation today
-    Rc = ModbusInst.readInputRegisters(33029, NoRegisters);
+    Rc = ModbusReadInputUpdateCached(33029, NoRegisters);
     if (Rc == ModbusInst.ku8MBSuccess)
     {
       // expressed in kWh
@@ -160,7 +184,7 @@ static bool ModBusReadSolisRegisters( ModbusSolisRegister_t *ModbusSolisRegister
     // 33165:33166 - Battery discharge total
     // 33169:33170 - Grid power imported total
     // 33173:33174 - Power exported from grid total
-    Rc = ModbusInst.readInputRegisters(33161, NoRegisters);
+    Rc = ModbusReadInputUpdateCached(33161, NoRegisters);
     if (Rc == ModbusInst.ku8MBSuccess)
     {
       // expressed in 1kWh intervals
