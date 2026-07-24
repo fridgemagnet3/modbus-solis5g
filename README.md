@@ -6,11 +6,9 @@ This is a collection of some applications, tools and utilities I've put together
 
 It's transpired that different versions of firmware in the datalogger behave radically differently, as a result you may NOT see the same behaviour I describe below with your setup. For example, version 10154 consumes most of bandwidth of the 5 minute cycle polling for non-existent slaves, whereas the version I have, only performs this over a half hour period after coming out of reset.
 
-As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast) and [modbus-esp32](#modbus-esp32) apps work as against firmware version **1012f**. Likewise the [modbus-slave](#modbus-slave) app will be mimicing the behaviour of that same version of datalogger. As such I strongly recommend using the [modbus-sniffer](#modbus-sniffer) app first to ascertain the exact behaviour of your datalogger.
+As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast) and [modbus-esp32](#modbus-esp32) apps work against firmware version **13230**. Likewise the [modbus-slave](#modbus-slave) app will be mimicing the behaviour of that same version of datalogger. As such I strongly recommend using the [modbus-sniffer](#modbus-sniffer) app first to ascertain the exact behaviour of your datalogger.
 
-[i6]: https://github.com/fridgemagnet3/modbus-solis5g/issues/6
-
-**This branch is a work in progress to provide an update that works with 13230 firmware.** It _may_ also work with older and newer (if they exist) versions however no guarantees. See ([#6][i6]) for the current status.
+It _may_ also work with older and newer (if they exist) versions however no guarantees.
 
 ## Background
 
@@ -54,13 +52,7 @@ As an extra observation, as part of my simulated test setup, I've had the ESP-32
 As a result, I've had to implement software workarounds, in effect to discard any incoming bytes up until the expected start of response sequence is detected. In the case of the Linux applications, this is in the form of a patch against the current. 3.1.11 release of the libmodbus library, this can be found in the [libmodbus folder](libmodbus/). For the ESP-32 module, I've created a fork of the [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster) library.
 
 ## Daily reset
-[i2]: https://github.com/fridgemagnet3/modbus-solis5g/issues/2
-Every day, the logger appears to perform a reset, my working (unproven) theory is that this is to check for a firmware update from Solis. Initially, this will happen exactly 24 hours from the initial application of power however over time, the point this happens will shift, possibly to even out load on Solis's servers. In the [initial logs](data/) and spreadsheets I captured last year, this even I highlighted as "anomaly" or "anomalous behaviour", however a more detailed breakdown of exactly what it does 
-can be found in the [logger-reset spreadsheet](data/logger-reset.ods). In a nutshell though, the typical behaviour is that the logger aborts it's current cycle, then ~12 seconds later begins polling all of the slaves it supports. Whilst most of us only have the one inverter, the documentation states it can address up to 10 and this is bourne out by the behaviour. 
-
-The logger is particularly senstive to transactions occurring around the point it comes out of reset (ie. possibly being performed by my applications), potentially leading to the point where it fails to recognize the inverter and hence ceases all communication, requiring a manual reset to recover. This is essentially what ([#2][i2]) was about, trying to ensure the software does not upset the logger such that it gets into this state. I believe this is now addressed however it should be noted that during this investigation, the logger exhibited a number of subtly different behaviours around the reset point so it remains possible it could still get into this state. However if it does, this should be a relatively rare event.
-
-The additional point to note is that my focus whilst looking at ([#2][i2]) was in addressing the ESP version of the software and whilst some of the fixes have been backported to the original Linux [modbus-solis-broadcast prototype](#modbus-solis-broadcast) version, not all have and only limited testing has subsequently been performed. This needs to be kept in mind if you're planning on using this solution long term. See the ticket for more details.
+To be updated...
 
 ## ESP-32 Module
 For the finished product, I replaced the Raspberry Pi with an ESP32 WROOM-32 module. These are inexpensive, nifty little microcontrollers which have a bunch of I/O (including serial) plus built in Wifi. 
@@ -101,6 +93,8 @@ There are 4 distinct applications currently here. The first 3 are designed to be
 The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the Linux applications which interface to the serial ports directly configure any of the serial settings, you'll need to do that first by hand which is normally just a case of doing something like:
 
 `stty -F /dev/ttyUSB0 9600 raw -echo`
+
+**Note that the datalogger behaviour described below has yet to be updated to reflect the 13230 firmware**
 
 ### modbus-sniffer
 Dependencies: boost-crc, boost-datetime (sudo apt-get install libboost-dev libboost-date-time-dev)
@@ -152,6 +146,3 @@ This is the Arduino sketch for the ESP-32 port of [modbus-solis-broadcast](#modb
 
 The script [mqtt/solar_mqtt_publisher.py](mqtt/solar_mqtt_publisher.py) listens to the solar UDP broadcast packets and publishes a subset of them to an MQTT broker. It also publishes [home assistant MQTT auto-discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) topics for each sensor, meaning they should automatically show up in HA.
 
-Note that at the time of writing, the collection of Modbus broadcast applications **do not** obtain all of the necessary data from the inverter to fully populate the Energy dashboard in HA, in particular it requires the kWh usage metrics from panels, grid and battery. In my setup, I handle this by running my [solis_broadcast.py](https://github.com/fridgemagnet3/solar-display-micropython/tree/main/solis-broadcast) script in tandem with this one (I mentioned this in the opening para of this README). This obtains all of the metrics from the Solis cloud, a subset (which includes all those necessary for the HA energy dashboard) are then also put out as UDP broadcast packets. Aside from providing this additional usage information, it also serves as a backup source in the event my ESP app is offline. There's logic in the MQTT script to handle the fact that two sources of solar data may be present on the network, ensuring only the latest is used and factoring in that only one of them has this additional data used by HA.
-
-There's no obvious reason why the apps here can't be adapted to obtain this additional information via Modbus (albeit at the risk of upsetting the timings). However those additional metrics don't really fall into the real time category of those I have implemented, at present I've no plans to open the software up again just to add them in.
