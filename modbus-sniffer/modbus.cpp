@@ -441,7 +441,7 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
       // you could get a 32-bit register spanning two batches - for the ones I'm interested in
       // don't think that happens but make them static anyway to be on the safe side
       static int32_t ActivePower, BattPower, GridPower, MeterTotalActivePower ;
-      static uint32_t CurrentGeneration ;
+      static uint32_t CurrentGeneration, TotalPower, ElectMeterTotalActivePower ;
       
       switch (Address)
       {
@@ -473,21 +473,30 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
         printf("%u: System Time Second: %u\n", Address, *It);
         break;
 
+      case 33029:
+        TotalPower = ((*It) << 16) ;
+        break ;
+        
+      case 33030:
+		TotalPower+=*It ;
+		printf("%u:%u: Total power generation: %u kWh\n", Address-1, Address, TotalPower );
+		break ;
+       
       case 33035:
         // expressed in 0.1kWh intervals
-        printf("%u:Inverter power generation today: %f kWh\n", Address, (float)(*It)*0.1) ;
+        printf("%u: Inverter power generation today: %f kWh\n", Address, (float)(*It)*0.1) ;
         break ;
 
-		case 33057:
+	  case 33057:
 		
-			CurrentGeneration = ((*It) << 16) ;
-			break ;
+		CurrentGeneration = ((*It) << 16) ;
+		break ;
 			
-		case 33058:
+	  case 33058:
 			
-			CurrentGeneration+=*It ;
-			printf("%u:%u: Current Generation - DC power o/p: %u W\n", Address-1, Address, CurrentGeneration );
-			break ;
+		CurrentGeneration+=*It ;
+		printf("%u:%u: Current Generation - DC power o/p: %u W\n", Address-1, Address, CurrentGeneration );
+		break ;
 			
       case 33079:
         ActivePower = ((*It) << 16) ;
@@ -502,14 +511,23 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
         printf("%u: Grid frequency: %f Hz\n", Address, (*It)*0.01) ;
         break ;
 
+      case 33126 :
+        ElectMeterTotalActivePower = ((*It) << 16) ;
+        break ;
+        
+      case 33127:
+        ElectMeterTotalActivePower+=*It ;
+        printf("%u:%u: Electricity meter total active power generation: %u Wh\n", Address-1, Address, ElectMeterTotalActivePower );
+        break ;
+        
       case 33130 :
         GridPower = ((*It) << 16) ;
         break ;
         
       case 33131 :
-			GridPower+=*It ;
-			printf("%u:%u: Grid Power, +ve export, -ve import: %d W\n",Address-1, Address, GridPower) ;
-			break ;
+		GridPower+=*It ;
+		printf("%u:%u: Grid Power, +ve export, -ve import: %d W\n",Address-1, Address, GridPower) ;
+		break ;
 			      
       case 33135 :
       
@@ -540,9 +558,17 @@ static void DecodeResponseData(uint8_t Function, std::vector<uint16_t>ResponseDa
       case 33163 :
         printf("%u: Battery charge today: %f kWh\n", Address, (float)(*It)*0.1) ; 
         break ;
+
+      case 33167 :
+        printf("%u: Battery discharge today: %f kWh\n", Address, (float)(*It)*0.1) ; 
+        break ;
       
       case 33171 :
-        printf("%u: Grid power imported today: %u kWh\n", Address, (*It)/10) ; 
+        printf("%u: Grid power imported today: %f kWh\n", Address, (float)(*It)*0.1) ; 
+        break ;
+
+      case 33175 :
+        printf("%u: Grid power exported today: %f kWh\n", Address, (float)(*It)*0.1) ; 
         break ;
       
       case 33263 :
@@ -572,11 +598,12 @@ int main(int argc, char *argv[])
   ptime Now(second_clock::local_time()) ;
   bool IsLive = false ;
   bool DecodeError = false ;
+  bool AllSlavesRespond = false ;
   
   // the slave is needed to allow us to try and sync up with the incoming data
   if ( argc < 2 )
   {
-    printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1]\n");
+    printf( "Usage: modbus <input> [slave address=1] [csvlog=0] [verbose=0] [binlog=0] [restrict slave=1] [all-slaves-respond=0]\n");
     return -1 ;
   }
   if ( !strcmp(argv[1],"-") )
@@ -665,6 +692,14 @@ int main(int argc, char *argv[])
   {
     RestrictToSlave = false;
     std::cout << "Not restricting decode to single slave" << std::endl;
+    
+    // indicate if should expect a response back from all the slaves
+    // useful if running a broadcast app in tandem since it will simulate this
+    if ( argc > 7 && strtoul(argv[7], NULL, 0))
+    {
+      AllSlavesRespond = true ;
+      std::cout << "Will expect a response for all slaves" << std::endl;
+    }
   }
 
   // start processing traffic
@@ -673,8 +708,8 @@ int main(int argc, char *argv[])
      uint8_t MsgSlave = Slave ;
       
   	 DecodeError = !ProcessRequest(Fd, MsgSlave, Function, Valid, ResponseData) ;
-     // if decoding for multiple slave, we only expect a response back from the one specified on the command line
-  	 if ( !DecodeError && (MsgSlave == Slave))
+
+  	 if ( !DecodeError && (AllSlavesRespond || (MsgSlave == Slave)))
   	 {
     	  DecodeError = !ProcessResponse(Fd, Slave, Function,Valid,ResponseData,Verbose) ;
     	  if ( !DecodeError && Valid )

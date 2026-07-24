@@ -8,6 +8,10 @@ It's transpired that different versions of firmware in the datalogger behave rad
 
 As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast) and [modbus-esp32](#modbus-esp32) apps work as against firmware version **1012f**. Likewise the [modbus-slave](#modbus-slave) app will be mimicing the behaviour of that same version of datalogger. As such I strongly recommend using the [modbus-sniffer](#modbus-sniffer) app first to ascertain the exact behaviour of your datalogger.
 
+[i6]: https://github.com/fridgemagnet3/modbus-solis5g/issues/6
+
+**This branch is a work in progress to provide an update that works with 13230 firmware.** It _may_ also work with older and newer (if they exist) versions however no guarantees. See ([#6][i6]) for the current status.
+
 ## Background
 
 Solis 5G inverters allow for the connection of a Wifi dongle which allows information to be uploaded to the Solis cloud servers (in China). In turn, this information can be retrieved via the [SolisCloud website](https://www.soliscloud.com) and/or via the app.

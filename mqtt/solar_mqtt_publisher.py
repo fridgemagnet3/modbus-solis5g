@@ -237,41 +237,6 @@ while True:
     try:
         json_solar_data = json.loads(str(solar_data,encoding='utf-8'))
 
-        # these nodes are currently only in the packet derived from the cloud data
-        if 'batteryTotalChargeEnergy' in json_solar_data['data']:
-            batteryTotalChargeEnergy = convert_units(json_solar_data['data']['batteryTotalChargeEnergy'],
-                                                     json_solar_data['data']['batteryTotalChargeEnergyStr'],
-                                                                             "kWh")
-            if batteryTotalChargeEnergy>=last_batteryTotalChargeEnergy:
-                mqttc.publish("solar/batteryTotalChargeEnergy",batteryTotalChargeEnergy)
-                last_batteryTotalChargeEnergy=batteryTotalChargeEnergy
-        if 'batteryTotalDischargeEnergy' in json_solar_data['data']:
-            batteryTotalDischargeEnergy = convert_units(json_solar_data['data']['batteryTotalDischargeEnergy'],
-                                                        json_solar_data['data']['batteryTotalDischargeEnergyStr'],
-                                                        "kWh")
-            if batteryTotalDischargeEnergy>=last_batteryTotalDischargeEnergy:
-                mqttc.publish("solar/batteryTotalDischargeEnergy",batteryTotalDischargeEnergy)
-                last_batteryTotalDischargeEnergy = batteryTotalDischargeEnergy
-        if 'gridPurchasedTotalEnergy' in json_solar_data['data']:
-            gridPurchasedTotalEnergy = convert_units(json_solar_data['data']['gridPurchasedTotalEnergy'],
-                                                     json_solar_data['data']['gridPurchasedTotalEnergyStr'],
-                                                     "kWh")
-            if gridPurchasedTotalEnergy>=last_gridPurchasedTotalEnergy:
-                mqttc.publish("solar/gridPurchasedTotalEnergy",gridPurchasedTotalEnergy)
-                last_gridPurchasedTotalEnergy = gridPurchasedTotalEnergy
-        if 'gridSellTotalEnergy' in json_solar_data['data']:
-            gridSellTotalEnergy = convert_units(json_solar_data['data']['gridSellTotalEnergy'],
-                                                json_solar_data['data']['gridSellTotalEnergyStr'],
-                                                "kWh")
-            if gridSellTotalEnergy>=last_gridSellTotalEnergy:
-                mqttc.publish("solar/gridSellTotalEnergy",gridSellTotalEnergy)
-                last_gridSellTotalEnergy = gridSellTotalEnergy
-        if 'eTotal' in json_solar_data['data']:
-            eTotal = convert_units(json_solar_data['data']['eTotal'],json_solar_data['data']['eTotalStr'],"kWh")
-            # temp workaround for differential between local/cloud figures
-            if eTotal>=last_etotal:
-                mqttc.publish("solar/etotal",eTotal)
-                last_etotal = eTotal
         # this is ONLY in the data published locally and provides a counter
         # of how many times the modbus app detects that the logger has stopped issuing requests
         if 'loggerFail' in json_solar_data:
@@ -316,6 +281,50 @@ while True:
             mqttc.publish("solar/psum",psum)
             mqttc.publish("solar/familyLoadPower",familyLoadPower)
             mqttc.publish("solar/etoday",etoday)
+
+        # there seems to be some discrepency between the cumulative totals reported
+        # by the inverter vs those from the cloud that I've not yet got to the bottom of
+        # for now, just report the largest
+        #
+        
+        # total battery charged
+        batteryTotalChargeEnergy = convert_units(json_solar_data['data']['batteryTotalChargeEnergy'],
+                                                 json_solar_data['data']['batteryTotalChargeEnergyStr'],
+                                                                         "kWh")
+        if batteryTotalChargeEnergy>=last_batteryTotalChargeEnergy:
+            mqttc.publish("solar/batteryTotalChargeEnergy",batteryTotalChargeEnergy)
+            last_batteryTotalChargeEnergy=batteryTotalChargeEnergy
+
+        # total battery discharged
+        batteryTotalDischargeEnergy = convert_units(json_solar_data['data']['batteryTotalDischargeEnergy'],
+                                                    json_solar_data['data']['batteryTotalDischargeEnergyStr'],
+                                                    "kWh")
+        if batteryTotalDischargeEnergy>=last_batteryTotalDischargeEnergy:
+            mqttc.publish("solar/batteryTotalDischargeEnergy",batteryTotalDischargeEnergy)
+            last_batteryTotalDischargeEnergy = batteryTotalDischargeEnergy
+
+        # total energy imported
+        gridPurchasedTotalEnergy = convert_units(json_solar_data['data']['gridPurchasedTotalEnergy'],
+                                                 json_solar_data['data']['gridPurchasedTotalEnergyStr'],
+                                                 "kWh")
+        if gridPurchasedTotalEnergy>=last_gridPurchasedTotalEnergy:
+            mqttc.publish("solar/gridPurchasedTotalEnergy",gridPurchasedTotalEnergy)
+            last_gridPurchasedTotalEnergy = gridPurchasedTotalEnergy
+
+        # total energy exported
+        gridSellTotalEnergy = convert_units(json_solar_data['data']['gridSellTotalEnergy'],
+                                            json_solar_data['data']['gridSellTotalEnergyStr'],
+                                            "kWh")
+        if gridSellTotalEnergy>=last_gridSellTotalEnergy:
+            mqttc.publish("solar/gridSellTotalEnergy",gridSellTotalEnergy)
+            last_gridSellTotalEnergy = gridSellTotalEnergy
+
+        # total generation
+        eTotal = convert_units(json_solar_data['data']['eTotal'],json_solar_data['data']['eTotalStr'],"kWh")
+        if eTotal>=last_etotal:
+            mqttc.publish("solar/etotal",eTotal)
+            last_etotal = eTotal
+
     except:
         print("Exception processing solar data")
 

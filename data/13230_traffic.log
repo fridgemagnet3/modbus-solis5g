@@ -1,0 +1,2946 @@
+Live mode detected
+Writing CSV to: 2026-05-11_18-06-23.csv
+Skipped 0 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:52.661770
+Slave: 1
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 4f9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:52.678141
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 2
+CRC: e4a0 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:52.727377 (delta since previous: 0.65607s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 3498 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:52.777990
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: 96f7 - Ok
+[33mDecoded response (subset): 
+33000: Product Model: 12548
+33022: System Time Year: 26
+33023: System Time Month: 5
+33024: System Time Day: 11
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:52.880115 (delta since previous: 0.152738s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33025
+Quantity of Registers: 26
+CRC: 3d08 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:52.976021
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 21e1 - Ok
+[33mDecoded response (subset): 
+33025: System Time Hour: 18
+33026: System Time Minute: 8
+33027: System Time Second: 52
+33035:Inverter power generation today: 8.900000 kWh
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:53.090780 (delta since previous: 0.210665s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33050
+Quantity of Registers: 27
+CRC: fab9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:53.186616
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: bb9a - Ok
+[33mDecoded response (subset): 
+33057:33058: Current Generation - DC power o/p: 801 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:53.300095 (delta since previous: 0.209315s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33075
+Quantity of Registers: 28
+CRC: f029 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:53.380865
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: e4d3 - Ok
+[33mDecoded response (subset): 
+33079:33080: Active power: 740 W
+33094: Grid frequency: 50.090000 Hz
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:53.480500 (delta since previous: 0.180405s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33104
+Quantity of Registers: 29
+CRC: 2e18 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:53.609142
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 58
+CRC: 50b4 - Ok
+[33mDecoded response (subset): 
+33130:33131: Grid Power, +ve export, -ve import: 442 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:53.714959 (delta since previous: 0.234459s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33132
+Quantity of Registers: 27
+CRC: 2058 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:53.784484
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: a2e1 - Ok
+[33mDecoded response (subset): 
+33135: Batttery charge status(0=charge,1=discharge): 1
+33139: Battery capacity SOC: 0%
+33140: Battery capacity SOH: 0%
+33147: House load power: 304 W
+33149:33150: Battery power: 0 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:53.900474 (delta since previous: 0.185515s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33160
+Quantity of Registers: 26
+CRC: d7d9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:53.981260
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: c8bf - Ok
+[33mDecoded response (subset): 
+33163: Battery charge today: 0.000000 kWh
+33171: Grid power imported today: 5 kWh
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:54.080844 (delta since previous: 0.180370s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33200
+Quantity of Registers: 20
+CRC: ded9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:54.176761
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 40
+CRC: 9967 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:54.285165 (delta since previous: 0.204321s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33213
+Quantity of Registers: 27
+CRC: 1908 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:54.386101
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 245c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:54.500887 (delta since previous: 0.215722s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33238
+Quantity of Registers: 28
+CRC: 738 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:54.613173
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 4a3d - Ok
+[33mDecoded response (subset): 
+33263:33264: Meter total active power: 0.443000 kW
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:54.710223 (delta since previous: 0.209336s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33250
+Quantity of Registers: 25
+CRC: cab9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:54.774611
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: 1db2 - Ok
+[33mDecoded response (subset): 
+33263:33264: Meter total active power: 0.441000 kW
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:54.890581 (delta since previous: 0.180358s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43140
+Quantity of Registers: 26
+CRC: 48a4 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:54.986487
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 52
+CRC: e6cb - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:55.098713 (delta since previous: 0.208132s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33275
+Quantity of Registers: 35
+CRC: 1ee8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:55.180841
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 70
+CRC: 9507 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:55.310718 (delta since previous: 0.212005s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33338
+Quantity of Registers: 26
+CRC: b479 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:55.375111
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:55.489843 (delta since previous: 0.179125s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33460
+Quantity of Registers: 25
+CRC: 9e59 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:55.603345
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: 27fa - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:55.700443 (delta since previous: 0.210600s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33505
+Quantity of Registers: 27
+CRC: 4fc8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:55.781220
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 7d5c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:55.880881 (delta since previous: 0.180438s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33530
+Quantity of Registers: 10
+CRC: 4478 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:55.976721
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 20
+CRC: 8195 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:56.059948 (delta since previous: 0.179067s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33540
+Quantity of Registers: 36
+CRC: 5498 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:56.076469
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 72
+CRC: c8b - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:56.205107 (delta since previous: 0.145159s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33576
+Quantity of Registers: 29
+CRC: 8f99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:56.275851
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 58
+CRC: 4742 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:56.389354 (delta since previous: 0.184247s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34240
+Quantity of Registers: 6
+CRC: 3859 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:56.486614
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 12
+CRC: b795 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:56.539576 (delta since previous: 0.150222s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34275
+Quantity of Registers: 20
+CRC: ff28 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:56.604103
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 40
+CRC: 5695 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:56.689825 (delta since previous: 0.150249s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34325
+Quantity of Registers: 25
+CRC: 4c09 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:56.786988
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: e64b - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:56.896561 (delta since previous: 0.206736s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34345
+Quantity of Registers: 26
+CRC: 4189 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:56.981197
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:57.080810 (delta since previous: 0.184249s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34366
+Quantity of Registers: 28
+CRC: 47b9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:57.176741
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 7286 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:57.286315 (delta since previous: 0.205505s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34391
+Quantity of Registers: 26
+CRC: 59e9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:57.386068
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:57.498312 (delta since previous: 0.211997s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34416
+Quantity of Registers: 27
+CRC: 9298 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:57.596814
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 7d5c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:57.710335 (delta since previous: 0.212023s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34441
+Quantity of Registers: 16
+CRC: 6409 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:57.774754
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 32
+CRC: 7993 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:57.860484 (delta since previous: 0.150149s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34457
+Quantity of Registers: 35
+CRC: b448 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:57.877009
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 70
+CRC: 3d5f - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.010539 (delta since previous: 0.150055s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34490
+Quantity of Registers: 2
+CRC: 6679 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.074953
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 4
+CRC: 84fb - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.129187 (delta since previous: 0.118648s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34502
+Quantity of Registers: 7
+CRC: bd78 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.178480
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 14
+CRC: 24cf - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.249109 (delta since previous: 0.119922s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34509
+Quantity of Registers: 24
+CRC: b748 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.281941
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 48
+CRC: 2fcd - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.370295 (delta since previous: 0.121186s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34700
+Quantity of Registers: 50
+CRC: 8098 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.482575
+Slave: 1
+Error on function: Read Input Registers (4)
+Error code: 2
+CRC: c1c2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.515351 (delta since previous: 0.145056s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34800
+Quantity of Registers: 50
+CRC: 5859 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.601238
+Slave: 1
+Error on function: Read Input Registers (4)
+Error code: 2
+CRC: c1c2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.640302 (delta since previous: 0.124951s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43000
+Quantity of Registers: 27
+CRC: 44a7 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.688163
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 54
+CRC: 926a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.785168 (delta since previous: 0.144866s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43073
+Quantity of Registers: 1
+CRC: 7ef4 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.886214
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 88b9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:58.934074 (delta since previous: 0.148906s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43800
+Quantity of Registers: 25
+CRC: 2324 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:58.988420
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 50
+CRC: eaea - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:59.090532 (delta since previous: 0.156458s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43245
+Quantity of Registers: 25
+CRC: 5534 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:59.186433
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 50
+CRC: 1a2a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:59.296032 (delta since previous: 0.205500s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43302
+Quantity of Registers: 1
+CRC: 5d44 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:59.380701
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 8479 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:59.419792 (delta since previous: 0.123760s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43341
+Quantity of Registers: 1
+CRC: 8135 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:59.532084
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 44b8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:59.597675 (delta since previous: 0.177883s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43365
+Quantity of Registers: 35
+CRC: 9035 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:59.679820
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 70
+CRC: 5d64 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:59.810951 (delta since previous: 0.213276s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43483
+Quantity of Registers: 1
+CRC: add5 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:59.875302
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 44b8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:08:59.927045 (delta since previous: 0.116094s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43885
+Quantity of Registers: 2
+CRC: f275 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:08:59.977671
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 4
+CRC: 33fa - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:00.045802 (delta since previous: 0.118757s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43380
+Quantity of Registers: 26
+CRC: 87a5 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:09:00.081296
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 52
+CRC: ce81 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:00.676076 (delta since previous: 0.630274s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 7c9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:03.682186 (delta since previous: 3.6110s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 809a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:06.689700 (delta since previous: 3.7514s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: f243 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:09.698403 (delta since previous: 3.8703s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 798 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:13.675987 (delta since previous: 3.977584s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: ad9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:16.680817 (delta since previous: 3.4830s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 519b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:19.690797 (delta since previous: 3.9980s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 2342 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:22.699525 (delta since previous: 3.8728s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: d699 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:26.677159 (delta since previous: 3.977634s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 1a9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:29.680693 (delta since previous: 3.3534s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: e69a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:32.690661 (delta since previous: 3.9968s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 9443 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:35.698141 (delta since previous: 3.7480s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 6198 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:39.676975 (delta since previous: 3.978834s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: cb9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:42.680591 (delta since previous: 3.3616s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 379b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:45.690564 (delta since previous: 3.9973s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 4542 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:48.698007 (delta since previous: 3.7443s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: b099 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:52.676872 (delta since previous: 3.978865s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: f89b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:55.680453 (delta since previous: 3.3581s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 49b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:09:58.690420 (delta since previous: 3.9967s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 7642 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:01.699154 (delta since previous: 3.8734s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 8399 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:05.677991 (delta since previous: 3.978837s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 299a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:08.681598 (delta since previous: 3.3607s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: d59a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:11.689118 (delta since previous: 3.7520s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: a743 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:14.697810 (delta since previous: 3.8692s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 5298 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:18.677878 (delta since previous: 3.980068s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: d69a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:21.682717 (delta since previous: 3.4839s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 2a9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:24.691422 (delta since previous: 3.8705s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 5843 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:27.698924 (delta since previous: 3.7502s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: ad98 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:31.677746 (delta since previous: 3.978822s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 79b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:34.681354 (delta since previous: 3.3608s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: fb9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:37.691334 (delta since previous: 3.9980s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 8942 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:40.699935 (delta since previous: 3.8601s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 7c99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:44.677523 (delta since previous: 3.977588s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 349b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:47.682384 (delta since previous: 3.4861s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: c89b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:50.692342 (delta since previous: 3.9958s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: ba42 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:53.699815 (delta since previous: 3.7473s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 4f99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:10:57.682405 (delta since previous: 3.982590s)
+Slave: 1
+Function: Write Multiple Registers (16)
+Address: 43602
+Quantity of Registers: 2
+Byte Count: 4
+Write Data: 3
+Write Data: 66
+CRC: dc81 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:10:57.779718
+Slave: 1
+Function: Write Multiple Registers (16)
+Byte Count: 170
+CRC: 1609 - Incorrect, should be 54b1
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:53.094828 (delta since previous: 175.412423s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33050
+Quantity of Registers: 27
+CRC: fab9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:53.175429
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 2ef4 - Ok
+[33mDecoded response (subset): 
+33057:33058: Current Generation - DC power o/p: 1958 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:53.301413 (delta since previous: 0.206585s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33075
+Quantity of Registers: 28
+CRC: f029 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:53.386044
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 5c20 - Ok
+[33mDecoded response (subset): 
+33079:33080: Active power: 1930 W
+33094: Grid frequency: 49.940000 Hz
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:53.485656 (delta since previous: 0.184243s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33104
+Quantity of Registers: 29
+CRC: 2e18 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:53.550058
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 58
+CRC: 3028 - Ok
+[33mDecoded response (subset): 
+33130:33131: Grid Power, +ve export, -ve import: 1633 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:53.659661 (delta since previous: 0.174005s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33132
+Quantity of Registers: 27
+CRC: 2058 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:53.681298
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 3482 - Ok
+[33mDecoded response (subset): 
+33135: Batttery charge status(0=charge,1=discharge): 1
+33139: Battery capacity SOC: 0%
+33140: Battery capacity SOH: 0%
+33147: House load power: 247 W
+33149:33150: Battery power: 0 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:53.784654 (delta since previous: 0.124993s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33160
+Quantity of Registers: 26
+CRC: d7d9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:53.881914
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: c8bf - Ok
+[33mDecoded response (subset): 
+33163: Battery charge today: 0.000000 kWh
+33171: Grid power imported today: 5 kWh
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:53.995404 (delta since previous: 0.210750s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33200
+Quantity of Registers: 20
+CRC: ded9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:54.076183
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 40
+CRC: 9967 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:54.169398 (delta since previous: 0.173994s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33213
+Quantity of Registers: 27
+CRC: 1908 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:54.286809
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 245c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:54.385149 (delta since previous: 0.215751s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33238
+Quantity of Registers: 28
+CRC: 738 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:54.481104
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 63a1 - Ok
+[33mDecoded response (subset): 
+33263:33264: Meter total active power: 1.742000 kW
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:54.595754 (delta since previous: 0.210605s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33250
+Quantity of Registers: 25
+CRC: cab9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:54.612305
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: e56a - Ok
+[33mDecoded response (subset): 
+33263:33264: Meter total active power: 1.742000 kW
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:54.715639 (delta since previous: 0.119885s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43140
+Quantity of Registers: 26
+CRC: 48a4 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:54.779929
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 52
+CRC: e6cb - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:54.894651 (delta since previous: 0.179012s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33275
+Quantity of Registers: 35
+CRC: 1ee8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:54.975426
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 70
+CRC: b8fe - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:55.102760 (delta since previous: 0.208109s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33338
+Quantity of Registers: 26
+CRC: b479 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:55.186152
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:55.283264 (delta since previous: 0.180504s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33460
+Quantity of Registers: 25
+CRC: 9e59 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:55.380548
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: 27fa - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:55.495307 (delta since previous: 0.212043s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33505
+Quantity of Registers: 27
+CRC: 4fc8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:55.607566
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 7d5c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:55.704634 (delta since previous: 0.209327s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33530
+Quantity of Registers: 10
+CRC: 4478 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:55.785401
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 20
+CRC: 8195 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:55.854761 (delta since previous: 0.150127s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33540
+Quantity of Registers: 36
+CRC: 5498 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:55.887669
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 72
+CRC: c8b - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:56.004884 (delta since previous: 0.150123s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33576
+Quantity of Registers: 29
+CRC: 8f99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:56.085788
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 58
+CRC: 4742 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:56.185389 (delta since previous: 0.180505s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34240
+Quantity of Registers: 6
+CRC: 3859 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:56.281351
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 12
+CRC: b795 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:56.334264 (delta since previous: 0.148875s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34275
+Quantity of Registers: 20
+CRC: ff28 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:56.382300
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 40
+CRC: 5695 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:56.485636 (delta since previous: 0.151372s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34325
+Quantity of Registers: 25
+CRC: 4c09 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:56.597825
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: e64b - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:56.694871 (delta since previous: 0.209235s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34345
+Quantity of Registers: 26
+CRC: 4189 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:56.775646
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:56.875278 (delta since previous: 0.180407s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34366
+Quantity of Registers: 28
+CRC: 47b9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:56.987527
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 7286 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:57.084633 (delta since previous: 0.209355s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34391
+Quantity of Registers: 26
+CRC: 59e9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:57.181761
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:57.295246 (delta since previous: 0.210613s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34416
+Quantity of Registers: 27
+CRC: 9298 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:57.376017
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 7d5c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:57.500750 (delta since previous: 0.205504s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34441
+Quantity of Registers: 16
+CRC: 6409 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:57.601759
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 32
+CRC: 7993 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:57.685081 (delta since previous: 0.184331s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34457
+Quantity of Registers: 35
+CRC: b448 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:57.780903
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 70
+CRC: 3d5f - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:57.895624 (delta since previous: 0.210543s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34490
+Quantity of Registers: 2
+CRC: 6679 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:57.975141
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 4
+CRC: 84fb - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.044520 (delta since previous: 0.148896s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34502
+Quantity of Registers: 7
+CRC: bd78 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.076160
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 14
+CRC: 24cf - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.134244 (delta since previous: 0.89724s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34509
+Quantity of Registers: 24
+CRC: b748 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.182275
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 48
+CRC: 2fcd - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.284476 (delta since previous: 0.150232s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34700
+Quantity of Registers: 50
+CRC: 8098 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.381624
+Slave: 1
+Error on function: Read Input Registers (4)
+Error code: 2
+CRC: c1c2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.429494 (delta since previous: 0.145018s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34800
+Quantity of Registers: 50
+CRC: 5859 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.482641
+Slave: 1
+Error on function: Read Input Registers (4)
+Error code: 2
+CRC: c1c2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.524249 (delta since previous: 0.94755s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43000
+Quantity of Registers: 27
+CRC: 44a7 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.605010
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 54
+CRC: c0bc - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.704614 (delta since previous: 0.180365s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43073
+Quantity of Registers: 1
+CRC: 7ef4 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.785368
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 88b9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.824489 (delta since previous: 0.119875s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43800
+Quantity of Registers: 25
+CRC: 2324 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:58.887610
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 50
+CRC: eaea - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:58.974597 (delta since previous: 0.150108s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43245
+Quantity of Registers: 25
+CRC: 5534 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.086889
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 50
+CRC: 1a2a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:59.180125 (delta since previous: 0.205528s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43302
+Quantity of Registers: 1
+CRC: 5d44 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.281156
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 8479 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:59.328993 (delta since previous: 0.148868s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43341
+Quantity of Registers: 1
+CRC: 8135 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.382176
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 44b8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:59.423763 (delta since previous: 0.94770s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43365
+Quantity of Registers: 35
+CRC: 9035 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.488155
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 70
+CRC: 5d64 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:59.602847 (delta since previous: 0.179084s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43483
+Quantity of Registers: 1
+CRC: add5 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.686279
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 44b8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:59.717742 (delta since previous: 0.114895s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43885
+Quantity of Registers: 2
+CRC: f275 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.782211
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 4
+CRC: 33fa - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:13:59.844017 (delta since previous: 0.126275s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43380
+Quantity of Registers: 26
+CRC: 87a5 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:13:59.876862
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 52
+CRC: ce81 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:00.680776 (delta since previous: 0.836759s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 7c9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:03.685745 (delta since previous: 3.4969s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 809a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:06.693219 (delta since previous: 3.7474s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: f243 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:09.703213 (delta since previous: 3.9994s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 798 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:13.680786 (delta since previous: 3.977573s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: ad9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:16.685763 (delta since previous: 3.4977s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 519b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:19.694537 (delta since previous: 3.8774s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 2342 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:22.703218 (delta since previous: 3.8681s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: d699 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:26.682063 (delta since previous: 3.978845s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 1a9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:29.685652 (delta since previous: 3.3589s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: e69a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:32.694400 (delta since previous: 3.8748s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 9443 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:35.703093 (delta since previous: 3.8693s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 6198 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:39.681938 (delta since previous: 3.978845s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: cb9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:42.686780 (delta since previous: 3.4842s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 379b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:45.694245 (delta since previous: 3.7465s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 4542 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:48.704250 (delta since previous: 3.10005s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: b099 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:52.681846 (delta since previous: 3.977596s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: f89b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:55.687910 (delta since previous: 3.6064s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 49b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:14:58.695399 (delta since previous: 3.7489s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 7642 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:01.704111 (delta since previous: 3.8712s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 8399 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:05.681709 (delta since previous: 3.977598s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 299a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:08.687799 (delta since previous: 3.6090s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: d59a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:11.695264 (delta since previous: 3.7465s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: a743 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:14.705265 (delta since previous: 3.10001s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 5298 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:18.682820 (delta since previous: 3.977555s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: d69a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:21.686305 (delta since previous: 3.3485s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 2a9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:24.696256 (delta since previous: 3.9951s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 5843 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:27.704987 (delta since previous: 3.8731s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: ad98 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:31.682603 (delta since previous: 3.977616s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 79b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:34.686168 (delta since previous: 3.3565s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: fb9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:37.696132 (delta since previous: 3.9964s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 8942 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:40.704867 (delta since previous: 3.8735s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 7c99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:44.682481 (delta since previous: 3.977614s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 349b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:47.686056 (delta since previous: 3.3575s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: c89b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:50.697302 (delta since previous: 3.11246s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: ba42 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:53.704774 (delta since previous: 3.7472s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 4f99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:15:57.688597 (delta since previous: 3.983823s)
+Slave: 1
+Function: Write Multiple Registers (16)
+Address: 43602
+Quantity of Registers: 2
+Byte Count: 4
+Write Data: 3
+Write Data: 66
+CRC: dc81 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:15:57.784368
+Slave: 1
+Function: Write Multiple Registers (16)
+Byte Count: 170
+CRC: 930e - Incorrect, should be d1b6
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:53.178466 (delta since previous: 175.489869s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33050
+Quantity of Registers: 27
+CRC: fab9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:53.275668
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: c3dc - Ok
+[33mDecoded response (subset): 
+33057:33058: Current Generation - DC power o/p: 1279 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:53.385228 (delta since previous: 0.206762s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33075
+Quantity of Registers: 28
+CRC: f029 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:53.484988
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 70d2 - Ok
+[33mDecoded response (subset): 
+33079:33080: Active power: 1250 W
+33094: Grid frequency: 50.030000 Hz
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:53.598526 (delta since previous: 0.213298s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33104
+Quantity of Registers: 29
+CRC: 2e18 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:53.679267
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 58
+CRC: 7895 - Ok
+[33mDecoded response (subset): 
+33130:33131: Grid Power, +ve export, -ve import: 931 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:53.806496 (delta since previous: 0.207970s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33132
+Quantity of Registers: 27
+CRC: 2058 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:53.889860
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: b3f8 - Ok
+[33mDecoded response (subset): 
+33135: Batttery charge status(0=charge,1=discharge): 1
+33139: Battery capacity SOC: 0%
+33140: Battery capacity SOH: 0%
+33147: House load power: 316 W
+33149:33150: Battery power: 0 W
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:53.985752 (delta since previous: 0.179256s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33160
+Quantity of Registers: 26
+CRC: d7d9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:54.085507
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 7706 - Ok
+[33mDecoded response (subset): 
+33163: Battery charge today: 0.000000 kWh
+33171: Grid power imported today: 5 kWh
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:54.199045 (delta since previous: 0.213293s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33200
+Quantity of Registers: 20
+CRC: ded9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:54.279806
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 40
+CRC: 9967 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:54.378101 (delta since previous: 0.179056s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33213
+Quantity of Registers: 27
+CRC: 1908 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:54.539490
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 245c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:54.649245 (delta since previous: 0.271144s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33238
+Quantity of Registers: 28
+CRC: 738 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:54.682139
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 72dc - Ok
+[33mDecoded response (subset): 
+33263:33264: Meter total active power: 0.935000 kW
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:54.799362 (delta since previous: 0.150117s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33250
+Quantity of Registers: 25
+CRC: cab9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:54.878864
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: bb56 - Ok
+[33mDecoded response (subset): 
+33263:33264: Meter total active power: 0.957000 kW
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:54.978469 (delta since previous: 0.179107s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43140
+Quantity of Registers: 26
+CRC: 48a4 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:55.075610
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 52
+CRC: e6cb - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:55.183952 (delta since previous: 0.205483s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33275
+Quantity of Registers: 35
+CRC: 1ee8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:55.284985
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 70
+CRC: e1fa - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:55.399722 (delta since previous: 0.215770s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33338
+Quantity of Registers: 26
+CRC: b479 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:55.479245
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:55.578845 (delta since previous: 0.179123s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33460
+Quantity of Registers: 25
+CRC: 9e59 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:55.611724
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: 27fa - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:55.723963 (delta since previous: 0.145118s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33505
+Quantity of Registers: 27
+CRC: 4fc8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:55.777163
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 7d5c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:55.879219 (delta since previous: 0.155256s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33530
+Quantity of Registers: 10
+CRC: 4478 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:55.975129
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 20
+CRC: 8195 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:56.058332 (delta since previous: 0.179113s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33540
+Quantity of Registers: 36
+CRC: 5498 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:56.091190
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 72
+CRC: c8b - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:56.205954 (delta since previous: 0.147622s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 33576
+Quantity of Registers: 29
+CRC: 8f99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:56.289187
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 58
+CRC: 4742 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:56.388826 (delta since previous: 0.182872s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34240
+Quantity of Registers: 6
+CRC: 3859 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:56.485976
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 12
+CRC: b795 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:56.537703 (delta since previous: 0.148877s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34275
+Quantity of Registers: 20
+CRC: ff28 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:56.602101
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 40
+CRC: 5695 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:56.689085 (delta since previous: 0.151382s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34325
+Quantity of Registers: 25
+CRC: 4c09 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:56.786243
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 50
+CRC: e64b - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:56.897124 (delta since previous: 0.208039s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34345
+Quantity of Registers: 26
+CRC: 4189 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:56.979235
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:57.078820 (delta since previous: 0.181696s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34366
+Quantity of Registers: 28
+CRC: 47b9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:57.191060
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 56
+CRC: 7286 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:57.288288 (delta since previous: 0.209468s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34391
+Quantity of Registers: 26
+CRC: 59e9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:57.385503
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 52
+CRC: 67e2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:57.498956 (delta since previous: 0.210668s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34416
+Quantity of Registers: 27
+CRC: 9298 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:57.611209
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 54
+CRC: 7d5c - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:57.709573 (delta since previous: 0.210617s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34441
+Quantity of Registers: 16
+CRC: 6409 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:57.790298
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 32
+CRC: 7993 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:57.858438 (delta since previous: 0.148865s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34457
+Quantity of Registers: 35
+CRC: b448 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:57.891294
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 70
+CRC: 3d5f - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.003561 (delta since previous: 0.145123s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34490
+Quantity of Registers: 2
+CRC: 6679 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.083195
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 4
+CRC: 84fb - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.128638 (delta since previous: 0.125077s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34502
+Quantity of Registers: 7
+CRC: bd78 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.176622
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 14
+CRC: 24cf - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.242185 (delta since previous: 0.113547s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34509
+Quantity of Registers: 24
+CRC: b748 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.281479
+Slave: 1
+Function: Read Input Registers (4)
+Byte Count: 48
+CRC: 2fcd - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.394931 (delta since previous: 0.152746s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34700
+Quantity of Registers: 50
+CRC: 8098 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.478356
+Slave: 1
+Error on function: Read Input Registers (4)
+Error code: 2
+CRC: c1c2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.517562 (delta since previous: 0.122631s)
+Slave: 1
+Function: Read Input Registers (4)
+Address: 34800
+Quantity of Registers: 50
+CRC: 5859 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.604681
+Slave: 1
+Error on function: Read Input Registers (4)
+Error code: 2
+CRC: c1c2 - Ok
+[33mDecoded response (subset): 
+[37mSkipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.667713 (delta since previous: 0.150151s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43000
+Quantity of Registers: 27
+CRC: 44a7 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.684343
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 54
+CRC: 3eda - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.786424 (delta since previous: 0.118711s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43073
+Quantity of Registers: 1
+CRC: 7ef4 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.884951
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 88b9 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:58.932829 (delta since previous: 0.146405s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43800
+Quantity of Registers: 25
+CRC: 2324 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:58.987190
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 50
+CRC: eaea - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.089292 (delta since previous: 0.156463s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43245
+Quantity of Registers: 25
+CRC: 5534 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.185234
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 50
+CRC: 1a2a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.297431 (delta since previous: 0.208139s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43302
+Quantity of Registers: 1
+CRC: 5d44 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.379437
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 8479 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.445110 (delta since previous: 0.147679s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43341
+Quantity of Registers: 1
+CRC: 8135 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.480587
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 44b8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.537472 (delta since previous: 0.92362s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43365
+Quantity of Registers: 35
+CRC: 9035 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.601829
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 70
+CRC: 5d64 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.744171 (delta since previous: 0.206699s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43483
+Quantity of Registers: 1
+CRC: add5 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.780961
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 2
+CRC: 44b8 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.837701 (delta since previous: 0.93530s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43885
+Quantity of Registers: 2
+CRC: f275 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.885686
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 4
+CRC: 33fa - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:18:59.928557 (delta since previous: 0.90856s)
+Slave: 1
+Function: Read Holding Registers (3)
+Address: 43380
+Quantity of Registers: 26
+CRC: 87a5 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:18:59.976605
+Slave: 1
+Function: Read Holding Registers (3)
+Byte Count: 52
+CRC: ce81 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:00.685963 (delta since previous: 0.757406s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 7c9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:03.692073 (delta since previous: 3.6110s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 809a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:06.700796 (delta since previous: 3.8723s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: f243 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:09.708262 (delta since previous: 3.7466s)
+Slave: 2
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 798 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:13.687104 (delta since previous: 3.978842s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: ad9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:16.691947 (delta since previous: 3.4843s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 519b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:19.700674 (delta since previous: 3.8727s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 2342 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:22.707143 (delta since previous: 3.6469s)
+Slave: 3
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: d699 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:26.686024 (delta since previous: 3.978881s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 1a9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:29.690828 (delta since previous: 3.4804s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: e69a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:32.699593 (delta since previous: 3.8765s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 9443 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:35.707019 (delta since previous: 3.7426s)
+Slave: 4
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 6198 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:39.685871 (delta since previous: 3.978852s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: cb9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:42.691968 (delta since previous: 3.6097s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 379b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:45.700716 (delta since previous: 3.8748s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 4542 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:48.709400 (delta since previous: 3.8684s)
+Slave: 5
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: b099 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:52.687037 (delta since previous: 3.977637s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: f89b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:55.690587 (delta since previous: 3.3550s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 49b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:19:58.700562 (delta since previous: 3.9975s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 7642 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:01.708068 (delta since previous: 3.7506s)
+Slave: 6
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 8399 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:05.686872 (delta since previous: 3.978804s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 299a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:08.692970 (delta since previous: 3.6098s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: d59a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:11.700448 (delta since previous: 3.7478s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: a743 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:14.709169 (delta since previous: 3.8721s)
+Slave: 7
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 5298 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:18.686747 (delta since previous: 3.977578s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: d69a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:21.691602 (delta since previous: 3.4855s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: 2a9a - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:24.700315 (delta since previous: 3.8713s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 5843 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:27.709089 (delta since previous: 3.8774s)
+Slave: 8
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: ad98 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:31.686672 (delta since previous: 3.977583s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 79b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:34.691479 (delta since previous: 3.4807s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: fb9b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:37.702834 (delta since previous: 3.11355s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: 8942 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:40.709109 (delta since previous: 3.6275s)
+Slave: 9
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 7c99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:44.687893 (delta since previous: 3.978784s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 35000
+Quantity of Registers: 1
+CRC: 349b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:47.692645 (delta since previous: 3.4752s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 36000
+Quantity of Registers: 27
+CRC: c89b - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:50.700102 (delta since previous: 3.7457s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 2999
+Quantity of Registers: 28
+CRC: ba42 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:53.710057 (delta since previous: 3.9955s)
+Slave: 10
+Function: Read Input Registers (4)
+Address: 33000
+Quantity of Registers: 25
+CRC: 4f99 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Request... 2026-May-11 18:20:57.692644 (delta since previous: 3.982587s)
+Slave: 1
+Function: Write Multiple Registers (16)
+Address: 43602
+Quantity of Registers: 2
+Byte Count: 4
+Write Data: 3
+Write Data: 66
+CRC: dc81 - Ok
+Skipped 1 bytes in stream looking for next header
+
+Response... 2026-May-11 18:20:57.782195

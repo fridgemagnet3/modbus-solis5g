@@ -10,10 +10,10 @@
 #include <arpa/inet.h>
 typedef int SOCKET;
 #define closesocket close
+#define Sleep(a) usleep(a*1000)
 #else
 #include <io.h>
 #pragma warning(disable : 4996)
-#define sleep(x) Sleep(x*1000)
 #define O_NONBLOCK 0x80000
 #endif
 #include <errno.h>
@@ -23,6 +23,46 @@ typedef int SOCKET;
 #include <iostream>
 #include <sstream>
 #include <cjson/cJSON.h>
+#include <boost/crc.hpp>
+#ifdef RPI
+#include <wiringPi.h>
+
+// define GPIOs for RS485 control
+#define RS485_RE 4
+// only define one if RE & DE are tied together
+//#define RS485_DE 24
+
+// RTS handler used to control the RS485 direction GPIO
+static void RTSHandler(modbus_t *Ctx, int On)
+{
+  if (On)
+  {
+    // disable receiver, enable transmitter
+#ifdef RS485_RE
+    digitalWrite(RS485_RE, HIGH);
+#endif
+#ifdef RS485_DE
+    digitalWrite(RS485_DE, HIGH);
+#endif
+    // allow time for the other end to switch
+    Sleep(10);
+  }
+  else
+  {
+    if (Ctx)
+      tcdrain(modbus_get_socket(Ctx)) ;
+    // a delay may/may not be required here
+    Sleep(1);
+    // restore default receive functionality
+#ifdef RS485_RE
+    digitalWrite(RS485_RE, LOW);
+#endif
+#ifdef RS485_DE
+    digitalWrite(RS485_DE, LOW);
+#endif
+  }
+}
+#endif
 
 //
 // Collect power generation data from Solis inverter via modbus, then
@@ -40,27 +80,35 @@ typedef struct {
   double   pac;    // generation (kW)
   double   psum;   // grid in/out (kW)
   double   familyLoadPower; // load (kW)
-  double   etoday;  // generation today (kW)
+  double   etoday;  // generation today (kWh)
+  uint32_t batteryTotalChargeEnergy; // battery total charge (kWh)
+  uint32_t batteryTotalDischargeEnergy;  // battery total discharge (kWh)
+  uint32_t gridPurchasedTotalEnergy; // grid imported total (kWh)
+  uint32_t gridSellTotalEnergy; // grid exported total (kWh)
+  uint32_t eTotal; // solar generation total (kWh)
 } ModbusSolisRegister_t;
+
+static const uint32_t LoggerCycleTime = 300u; // 5 minutes
 
 static bool Verbose = false;
 
+static uint32_t LoggerFail = 0u;
+
 // read the required registers from modbus
-static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, uint8_t Slave = 1)
+static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *ModbusSolisRegisters, 
+                                      uint32_t &Elapsed, uint8_t Slave = 1)
 {
   using namespace boost::posix_time;
   modbus_t *Ctx = modbus_new_rtu(Device,9600,'N',8,1) ;
   uint16_t RegBank[16];
   int Rc = 0 ;
-  bool Ret = false;
+  bool Ret = true;
+  ptime RequestStart(microsec_clock::local_time());
 
   if (Verbose)
-  {
-    ptime RequestTime(second_clock::local_time());
-
-    std::cout << std::endl << "Issuing request at " << to_simple_string(RequestTime) << "..." << std::endl;
-  }
-
+    std::cout << std::endl << "Issuing request at " << to_simple_string(RequestStart) << "..." << std::endl;
+  Elapsed = 0u ;
+  
   memset(ModbusSolisRegisters,0,sizeof(ModbusSolisRegister_t)) ;
   
   if (!Ctx)
@@ -81,10 +129,30 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
     modbus_free(Ctx);
     return false;
   }
+
 #ifdef WIN32
   // for testing
   modbus_set_response_timeout(Ctx, 15, 0);
   modbus_set_debug(Ctx, 1);
+#else
+  modbus_set_response_timeout(Ctx, 0, 200000);
+#endif
+
+#ifdef RPI
+  // enable RS485 mode
+  if (modbus_rtu_set_rts(Ctx, MODBUS_RTU_RTS_UP) < 0)
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return false;
+  }
+  // set the callback used to control the RS485 transceivers
+  if (modbus_rtu_set_custom_rts(Ctx, RTSHandler) < 0)
+  {
+    printf("modbus_rtu_set_serial_mode: %s\n", modbus_strerror(errno));
+    modbus_free(Ctx);
+    return false;
+  }
 #endif
 
   // most of what we need is in a single grouping
@@ -102,47 +170,211 @@ static bool ModBusReadSolisRegisters(const char *Device, ModbusSolisRegister_t *
     // 33135 - battery charge status, 0=charge, 1=discharge
     if (RegBank[0])
       ModbusSolisRegisters->batteryPower *= -1;  // if discharging, flip the power
-    ModbusSolisRegisters->batteryPower/=1000.0 ; // convert to kW
-    ModbusSolisRegisters->familyLoadPower = (double)RegBank[12] / 1000 ; // 33147
+    ModbusSolisRegisters->batteryPower /= 1000.0; // convert to kW
+    ModbusSolisRegisters->familyLoadPower = (double)RegBank[12] / 1000; // 33147
+  }
+  else
+  {
+    printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+    Ret = false;
+  }
 
-    // three further register reads are required to get the remaining info...
+  if (Ret)
+  {
     // 33057:33058: Current Generation
-    // 33263:33264: Meter total active power
-    // 33035 Current generation today
     Rc = modbus_read_input_registers(Ctx, 33057, sizeof(uint32_t) / sizeof(uint16_t), RegBank);
     if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
     {
       uint32_t Generation = (RegBank[0] << 16) + RegBank[1];   // expressed in watts
-      ModbusSolisRegisters->pac = (double)Generation / 1000 ;  // return as kW
-
-      Rc = modbus_read_input_registers(Ctx, 33263, sizeof(int32_t) / sizeof(uint16_t), RegBank);
-      if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
-      {
-        int32_t ActivePower = MODBUS_GET_INT32_FROM_INT16(RegBank, 0);
-        ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
-
-        Rc = modbus_read_input_registers(Ctx, 33035, sizeof(uint16_t), RegBank);
-        if (Rc == sizeof(uint16_t))
-        {
-          // expressed in 0.1kWh intervals
-          ModbusSolisRegisters->etoday = (float)(RegBank[0])*0.1;
-          Ret = true;
-        }
-        else
-          printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
-      }
-      else
-        printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      ModbusSolisRegisters->pac = (double)Generation / 1000;  // return as kW
     }
     else
+    {
       printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
   }
-  else
-    printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+
+  if (Ret)
+  {
+    // 33263:33264: Meter total active power
+    Rc = modbus_read_input_registers(Ctx, 33263, sizeof(int32_t) / sizeof(uint16_t), RegBank);
+    if (Rc == sizeof(uint32_t) / sizeof(uint16_t))
+    {
+      int32_t ActivePower = MODBUS_GET_INT32_FROM_INT16(RegBank, 0);
+      ModbusSolisRegisters->psum = (double)ActivePower * 0.001;
+    }
+    else
+    {
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
+  }
+
+  if (Ret)
+  {
+    const int NoRegisters = 7;
+
+    // 33029-33030: Inverter total power generation
+    // 33035:       Intverter power generation today
+    Rc = modbus_read_input_registers(Ctx, 33029, NoRegisters, RegBank);
+    if (Rc == NoRegisters)
+    {
+      // expressed in kWh
+      ModbusSolisRegisters->eTotal = (RegBank[0] << 16) + RegBank[1];
+      // expressed in 0.1kWh intervals
+      ModbusSolisRegisters->etoday = (float)(RegBank[6])*0.1;
+    }
+    else
+    {
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
+  }
+
+  if (Ret)
+  {
+    const int NoRegisters = 14;
+
+    // 33161:33162 - Battery charge total
+    // 33165:33166 - Battery discharge total
+    // 33169:33170 - Grid power imported total
+    // 33173:33174 - Power exported from grid total
+    Rc = modbus_read_input_registers(Ctx, 33161, NoRegisters, RegBank);
+    if (Rc == NoRegisters)
+    {
+      // expressed in 1kWh intervals
+      ModbusSolisRegisters->batteryTotalChargeEnergy = (RegBank[0] << 16) + RegBank[1];
+      ModbusSolisRegisters->batteryTotalDischargeEnergy = (RegBank[4] << 16) + RegBank[5];
+      ModbusSolisRegisters->gridPurchasedTotalEnergy = (RegBank[8] << 16) + RegBank[9];
+      ModbusSolisRegisters->gridSellTotalEnergy = (RegBank[12] << 16) + RegBank[13];
+    }
+    else
+    {
+      printf("modbus_read_input_registers: %s\n", modbus_strerror(errno));
+      Ret = false;
+    }
+  }
+
 
   modbus_close(Ctx);
   modbus_free(Ctx);
+
+  ptime RequestEnd(microsec_clock::local_time());
+  time_duration ElapsedTime = RequestEnd - RequestStart;
+  Elapsed = ElapsedTime.total_milliseconds();
+  
   return Ret;
+}
+
+// decode Modbus request and if not intended for our slave, respond with something
+// that will (hopefully) persuade the logger to stop querying it
+static int DecodeAndRespondToSlave(uint8_t *Buffer, uint32_t BufSz, uint8_t SlaveId, int SerialFd)
+{
+  const uint32_t MinMsgLen = 8;
+  uint8_t ReqSlave;
+  uint8_t FCodeReadInput = 4;
+  uint16_t Crc;
+  uint16_t Register;
+  uint32_t MsgStart = 0 ;
+
+  // discard any null bytes at the start of the message    
+  while(BufSz)
+  {
+    if ( !Buffer[MsgStart] )
+    {
+      BufSz-- ;
+      MsgStart++ ;
+    }
+    else
+      break ;
+  }
+
+  if ( Verbose )
+  {
+    printf("DecodeAndRespondToSlave - size %u\nMsg: ",BufSz);
+    for(uint32_t i=0 ; i < BufSz ; i++ )
+      printf( "%02x ",Buffer[i]) ;
+    printf("\n") ;
+  }
+  
+  // messages we're expecting should all be single register read requests, 8 bytes long
+  if (BufSz < MinMsgLen)
+  {
+    if (Verbose)
+      printf("Message too short for a read input register function\n");
+    return -1;
+  }
+  // check slave not us
+  ReqSlave = Buffer[MsgStart];
+  if (ReqSlave == SlaveId)
+  {
+    if (Verbose)
+      printf("Message is for local inverter, ignoring\n");
+    return SlaveId;
+  }
+
+  // check this is a read register request
+  if (Buffer[MsgStart+1] != FCodeReadInput)
+  {
+    printf("Not a read input registers function, ignoring\n");
+    return -1;
+  }
+
+  // compute then verify the CRC
+  auto ModBusCrc = boost::crc_optimal<16, 0x8005, 0xFFFF, 0, true, true> {};
+  ModBusCrc.process_bytes(&Buffer[MsgStart], MinMsgLen - sizeof(uint16_t));
+
+  Crc = (Buffer[MsgStart+7] << 8) + Buffer[MsgStart+6];
+  if (ModBusCrc.checksum() != Crc)
+  {
+    if (Verbose)
+      printf("CRC Incorrect, should be %x\n", ModBusCrc.checksum());
+    return -1;
+  }
+
+  // extract the register
+  Register = (Buffer[MsgStart+2] << 8) + Buffer[MsgStart+3];
+
+  if (Verbose)
+    printf("Message for slave: %u, register: %u\n", ReqSlave, Register);
+
+  // got what we need, now generate the response...
+  uint8_t ResponseBuf[5];
+  const uint8_t ExceptionIllegalData = 0x02;
+
+  // initial attempt: respond with an illegal address exception
+  ResponseBuf[0] = ReqSlave;
+  ResponseBuf[1] = FCodeReadInput | 0x80;
+  ResponseBuf[2] = ExceptionIllegalData;
+
+  ModBusCrc.reset();
+  ModBusCrc.process_bytes(ResponseBuf, 3);
+  ResponseBuf[3] = ModBusCrc.checksum() & 0xff;
+  ResponseBuf[4] = ModBusCrc.checksum() >> 8 ;
+
+#ifdef RPI
+  RTSHandler(nullptr,1) ;
+#else
+  Sleep(10);
+#endif
+
+  if ( write(SerialFd, ResponseBuf, sizeof(ResponseBuf) ) < 0 )
+    printf("Error on serial write\n") ;
+
+#ifndef WIN32
+  // wait for serial data to drain
+  tcdrain(SerialFd);
+#endif
+
+#ifdef RPI
+  RTSHandler(nullptr,0) ;
+#else
+  // a delay may/may not be required here depending on how reliable 'tcdrain' actually is
+  Sleep(30);
+#endif
+
+  return ReqSlave;
 }
 
 #ifdef WIN32
@@ -201,9 +433,9 @@ static HANDLE OpenW32Serial(const char *Device, int Flags)
   }
   else
   {
-    CTimeouts.ReadIntervalTimeout = 50;
-    CTimeouts.ReadTotalTimeoutMultiplier = 10; 
-    CTimeouts.ReadTotalTimeoutConstant = 50;
+    CTimeouts.ReadIntervalTimeout = 100;
+    CTimeouts.ReadTotalTimeoutMultiplier = 0; 
+    CTimeouts.ReadTotalTimeoutConstant = 1;
   }
   if (!SetCommTimeouts(hComm, &CTimeouts))
   {
@@ -227,18 +459,18 @@ static int OpenW32SerialAsFd(const char *Device, int Flags)
 
 // Sync with the next transfer performed by the datalogger & wait for it to finish
 // Windows version
-static bool SyncWithLogger(const char *Device)
+static bool SyncWithLogger(const char *Device, uint8_t SlaveId, uint32_t &Elapsed)
 {
   using namespace boost::posix_time;
   HANDLE hComm;
   COMMTIMEOUTS CTimeouts;
   bool BusIdle = false;
   uint8_t ScratchBuf[256];
-  ptime SyncStart(second_clock::local_time());
-  const uint32_t SyncTimeout = 80u;
-  DWORD BytesRead;
+  ptime SyncStart(microsec_clock::local_time());
+  int BytesRead;
+  int SerialFd;
 
-  hComm = OpenW32Serial(Device, O_RDONLY);
+  hComm = OpenW32Serial(Device, O_RDWR);
   if (hComm == INVALID_HANDLE_VALUE)
   {
     printf("Failed to open input: %d\n", GetLastError());
@@ -254,7 +486,7 @@ static bool SyncWithLogger(const char *Device)
     return false;
   }
 
-  CTimeouts.ReadTotalTimeoutConstant = SyncTimeout*1000;
+  CTimeouts.ReadTotalTimeoutConstant = LoggerCycleTime*1000;
   if (!SetCommTimeouts(hComm, &CTimeouts))
   {
     printf("Failed to set comm timeouts: %d\n", GetLastError());
@@ -265,70 +497,77 @@ static bool SyncWithLogger(const char *Device)
   if ( Verbose )
     std::cout << std::endl << "Sync with logger at " << to_simple_string(SyncStart) << "..." << std::endl ;
 
-  // first, wait for the next burst of traffic from the logger, this normally occurs every minute
-  BOOL ReadStatus = ReadFile(hComm, ScratchBuf, sizeof(ScratchBuf), &BytesRead, NULL);
+  // create an associated file descriptor for parity with Linux version
+  SerialFd = _open_osfhandle((intptr_t)hComm, O_RDWR);
 
-  if (ReadStatus && BytesRead)
+  // first, wait for the next burst of traffic from the logger, this normally occurs every five minutes
+  BytesRead = _read(SerialFd, ScratchBuf, sizeof(ScratchBuf));
+
+  if (BytesRead>0)
   {
-    ptime WaitIdle(second_clock::local_time());
-    auto Elapsed = WaitIdle - SyncStart;
+    ptime WaitIdle(microsec_clock::local_time());
+    auto ElapsedTime = WaitIdle - SyncStart;
 
     if (Verbose)
     {
-      std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
+      std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
       std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl;
     }
+    SyncStart = microsec_clock::local_time();
 
-    // wait for ~12s of inactivity
-    CTimeouts.ReadTotalTimeoutConstant = 12 * 1000;
+    DecodeAndRespondToSlave(ScratchBuf, BytesRead, SlaveId, SerialFd);
+
+    // wait for ~8s of inactivity
+    CTimeouts.ReadTotalTimeoutConstant = 8 * 1000;
     if (!SetCommTimeouts(hComm, &CTimeouts))
     {
       printf("Failed to set comm timeouts: %d\n", GetLastError());
-      CloseHandle(hComm);
+      _close(SerialFd);
       return false;
     }
 
     // sit in loop waiting for the bus to become inactive again
     while (!BusIdle)
     {
-      if (ReadFile(hComm, ScratchBuf, sizeof(ScratchBuf), &BytesRead, NULL))
-      {
-        if (!BytesRead)
-          BusIdle = true;
-      }
+      BytesRead = _read(SerialFd, ScratchBuf, sizeof(ScratchBuf));
+      if (!BytesRead)
+        BusIdle = true;
+      else if ( BytesRead > 0 )
+        DecodeAndRespondToSlave(ScratchBuf, BytesRead, SlaveId, SerialFd);
       else
       {
         printf("Error on read: %d\n", GetLastError());
         break;
       }
     }
-
-    if (Verbose)
-    {
-      ptime NowIdle(second_clock::local_time());
-      Elapsed = NowIdle - WaitIdle;
-
-      std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
-    }
   }
-  else if ( ReadStatus )
+  else if ( !BytesRead )
   {
     if (Verbose)
       printf("Timed out waiting for traffic - going ahead anyway...\n");
     BusIdle = true;
+    LoggerFail++;
   }
   else
   {
     printf("Error on read: %d\n", GetLastError());
   }
-  CloseHandle(hComm);
+  _close(SerialFd);
+
+  ptime SyncEnd(microsec_clock::local_time());
+  time_duration ElapsedTime = SyncEnd - SyncStart;
+  Elapsed = ElapsedTime.total_milliseconds();
+
+  if (Verbose)
+    std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
+
   return BusIdle;
 }
 
 #else
 // Sync with the next transfer performed by the datalogger & wait for it to finish
 // Linux version
-static bool SyncWithLogger(const char *Device)
+static bool SyncWithLogger(const char *Device, uint8_t SlaveId,uint32_t &Elapsed)
 {
   using namespace boost::posix_time;
   int Fd;
@@ -337,18 +576,54 @@ static bool SyncWithLogger(const char *Device)
   bool BusIdle = true;
   int Rc ;
   uint8_t ScratchBuf[256] ;
-  ptime SyncStart(second_clock::local_time()) ;
-  const uint32_t SyncTimeout = 80u ;
+  ptime SyncStart(microsec_clock::local_time()) ;
+  struct termios Termios ;
+  const uint32_t ReadInputRegReqSize = 8 ;
+  static bool FirstRun = true ;
+  bool Slave10Tx = false ;
   
-  Fd = open(Device, O_RDONLY);
+  Fd = open(Device, O_RDWR);
   if (Fd < 0)
   {
     perror("Failed to open input");
     return false;
   }
-  usleep(10000);
-  tcflush(Fd,TCIOFLUSH);
 
+  if ( tcgetattr(Fd,&Termios) < 0 )
+  {
+    perror("Failed to get terminal settings\n") ;
+    close(Fd);
+    return false ;
+  }
+  // set the minimum block size for a 'read' call which equates to the
+  // size of a single read input registers request
+  // 
+  // the additional '2' allows for stray null bytes I get in the serial
+  // stream, if you don't see that, then this can be removed
+  Termios.c_cc[VMIN] = ReadInputRegReqSize + 2;
+  // set the timeout interval before returning - 200ms which is about
+  // the worst case between logger requests
+  // 
+  // This *should* ensure every read call gives us a single Modbus request
+  // and possibly the response although we don't really care about those
+  Termios.c_cc[VTIME] = 1 ;
+  if ( tcsetattr(Fd,TCSANOW,&Termios) < 0 )
+  {
+    perror("Failed to set terminal settings\n") ;
+    close(Fd);
+    return false ;
+  }
+
+  if ( FirstRun )
+  {
+    FirstRun = false ;
+    // USB devices don't flush properly so attempt to handle this
+    // by delaying for a short while on first invocation
+    if ( strstr(Device,"USB") )
+      usleep(100*1000);
+    tcflush(Fd,TCIOFLUSH);
+  }
+  
   FD_ZERO(&FdSet);
   FD_SET(Fd, &FdSet);
 
@@ -357,14 +632,15 @@ static bool SyncWithLogger(const char *Device)
 
   while (BusIdle)
   {
-    // first, wait for the next burst of traffic from the logger, this normally occurs every minute
-    TimeOut.tv_sec = SyncTimeout;
+    // first, wait for the next burst of traffic from the logger, this normally occurs every five minutes 
+    TimeOut.tv_sec = LoggerCycleTime;
     TimeOut.tv_usec = 0;
     Rc = select(Fd + 1, &FdSet, NULL, NULL, &TimeOut);
     if (Rc == 0)
     {
       if (Verbose)
         printf("Timed out waiting for traffic - going ahead anyway...\n");
+      LoggerFail++ ;
       break;
     }
     else if (Rc < 0)
@@ -375,59 +651,73 @@ static bool SyncWithLogger(const char *Device)
     }
     else  // data is on the bus, that's what we're waiting for
     {
-      // I've seen the poll exit near enough immediately when it's clearly NOT synced with 
-      // the logger, possibly there is stale data sat in the buffers. If so, dump the data and try again.
-      // This typically happens at the start but can also occur when the data logger does one of it's odd/out of sync
-      // things
-      if ( TimeOut.tv_sec > 76 )
+      BusIdle = false;
+
+      if ( Verbose )
       {
-        ssize_t Bytes = read(Fd, ScratchBuf, sizeof(ScratchBuf)) ;
-        if ( Verbose )
-          printf("Got data %zu bytes within %lu seconds, re-syncing just to be sure...\n", Bytes, SyncTimeout-TimeOut.tv_sec);
+        ptime WaitIdle(microsec_clock::local_time()) ;
+        auto ElapsedTime = WaitIdle - SyncStart;
+	    
+        std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
+        std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl ;
       }
-      else
-        BusIdle = false;
+	
+      SyncStart = microsec_clock::local_time() ;
     }
-  }
-
-  ptime WaitIdle(second_clock::local_time()) ;
-  auto Elapsed = WaitIdle - SyncStart;
-
-  if ( Verbose )
-  {
-    std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
-    std::cout << std::endl << "Wait for idle at " << to_simple_string(WaitIdle) << "..." << std::endl ;
   }
 
   // sit in loop waiting for the bus to become inactive again
   while (!BusIdle)
   {
-    // dump any pending data
-    if (read(Fd, ScratchBuf, sizeof(ScratchBuf)) < 0)
+    // read any pending data
+    Rc = read(Fd, ScratchBuf, sizeof(ScratchBuf));
+
+    if (Rc < 0)
     {
       perror("read");
       break;
     }
-
-    // wait for ~12s of inactivity
-    TimeOut.tv_sec = 12;
-    TimeOut.tv_usec = 500*1000;
+    else if ( Rc > 0 )
+    {
+      int ReqSlave = DecodeAndRespondToSlave(ScratchBuf, Rc, SlaveId, Fd);
+      if ( ReqSlave == 10 )
+        Slave10Tx = true ;
+      else if ( ReqSlave == 2 ) // if there are multiple polls this cycle, make sure we reset the Tx flag
+        Slave10Tx = false ;
+    } 
+    
+    // this logic is designed to (in part) handle the logger reset behaviour...
+    
+    // Under normal conditions, it will poll all 10 slaves, then go idle for
+    // the remaining 5 minute cycle. That means we just need
+    // to wait for a short idle time (8s) before starting our transactions
+    // However when it's come out of reset, it can often start further polls
+    // much sooner. Under those conditions, it also never seems to complete all 
+    // the slave polling, instead appears to bail, then restart. So we use this
+    // behaviour to determine whether to hang around for longer - ie. if we
+    // *never* see a slave 10 transaction, assume we're going through a reset 
+    // and wait for much longer for the idle condition
+    if (!Slave10Tx)
+      TimeOut.tv_sec = 30 ;
+    else
+      TimeOut.tv_sec = 8;
+    TimeOut.tv_usec = 0;
     Rc = select(Fd + 1, &FdSet, NULL, NULL, &TimeOut);
     if (Rc == 0)
-      BusIdle = true;  // timed out, we should now have a good 50s time on the bus
+      BusIdle = true;  // timed out, bus is now free
     else if (Rc < 0)
     {
       perror("select");
+      break ;
     }
   }
 
-  if ( Verbose )
-  {
-    ptime NowIdle(second_clock::local_time()) ;
-    Elapsed = NowIdle - WaitIdle ;
+  ptime SyncEnd(microsec_clock::local_time());
+  time_duration ElapsedTime = SyncEnd - SyncStart;
+  Elapsed = ElapsedTime.total_milliseconds();
 
-    std::cout << "Elapsed: " << Elapsed.total_seconds() << "s" << std::endl;
-  }
+  if (Verbose)
+    std::cout << "Elapsed: " << ElapsedTime.total_seconds() << "s" << std::endl;
 
   close(Fd);
 
@@ -479,9 +769,16 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
     Node = cJSON_CreateNumber(ModbusSolisRegisters->etoday);
     if (Node)
       cJSON_AddItemToObject(SolarData, "eToday", Node);
-    Node = cJSON_CreateString("kW");
+    Node = cJSON_CreateString("kWh");
     if (Node)
       cJSON_AddItemToObject(SolarData, "eTodayStr", Node);
+    // eTotal - total solar generation
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->eTotal);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTotal", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "eTotalStr", Node);
 
     // generation
     Node = cJSON_CreateNumber(ModbusSolisRegisters->pac);
@@ -516,6 +813,36 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
     Node = cJSON_CreateString("kW");
     if (Node)
       cJSON_AddItemToObject(SolarData, "familyLoadPowerStr", Node);
+
+    // battery charge/discharge
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTotalChargeEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalChargeEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalChargeEnergyStr", Node);
+
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->batteryTotalDischargeEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalDischargeEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "batteryTotalDischargeEnergyStr", Node);
+
+    // grid today in/out
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridPurchasedTotalEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTotalEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridPurchasedTotalEnergyStr", Node);
+
+    Node = cJSON_CreateNumber(ModbusSolisRegisters->gridSellTotalEnergy);
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridSellTotalEnergy", Node);
+    Node = cJSON_CreateString("kWh");
+    if (Node)
+      cJSON_AddItemToObject(SolarData, "gridSellTotalEnergyStr", Node);
   }
 
   // the outer pieces
@@ -525,6 +852,12 @@ static char *GenerateJson(const ModbusSolisRegister_t *ModbusSolisRegisters)
   Node = cJSON_CreateBool(true);
   if (Node)
     cJSON_AddItemToObject(SolarJson, "success", Node);
+
+  // this is non-standard but provides an indication of if (and how many times)
+  // the logger has failed
+  Node = cJSON_CreateNumber(LoggerFail);
+  if (Node)
+    cJSON_AddItemToObject(SolarJson, "loggerFail", Node);
 
   // generate return string
   Ret = cJSON_Print(SolarJson);
@@ -536,9 +869,10 @@ int main(int argc, char *argv[])
 {
   ModbusSolisRegister_t ModbusSolisRegisters;
   uint8_t SlaveId = 1;
-  // should have 50s worth of free time, which allows for 3 requests at 20s intervals
-  const uint32_t RequestsPerCycle = 3;
-  const uint32_t PollDelay = 18;
+  const uint32_t PollDelay = 16 * 1000u;  // 16 seconds
+  const uint32_t LoggerCycleTimeMilliseconds = LoggerCycleTime * 1000u;
+  const uint32_t PollThreshold = 5000u;  // 5 seconds
+  uint32_t Elapsed;
   char *jSon;
   SOCKET sFd ;
   int EnBroadcast = 1 ;
@@ -596,15 +930,58 @@ int main(int argc, char *argv[])
   BroadcastAddr.sin_family = AF_INET;
   BroadcastAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
   
+#ifdef RPI
+  // Use BCM addressing for GPIO
+#ifdef PI_MODEL_5 // used as a sense check for older versions of the library
+  wiringPiSetupPinType(WPI_PIN_BCM) ;
+#else
+  wiringPiSetupGpio() ;
+#endif
+  // configure the GPIOs and set for receive only
+#ifdef RS485_RE
+  pinMode(RS485_RE,OUTPUT) ;
+  digitalWrite(RS485_RE,LOW);
+#endif
+#ifdef RS485_DE
+  pinMode(RS485_DE,OUTPUT) ;
+  digitalWrite(RS485_DE,LOW);
+#endif
+#endif
+  
   printf( "Starting poll\n") ;
 
   // sync to the next access performed by the data logger
-  while (SyncWithLogger(argv[1]))
+  while (SyncWithLogger(argv[1],SlaveId,Elapsed))
   {
-    // should have 50s worth of free time, which allows for 3 requests at 20s intervals
-    for (uint32_t i = 0; i < RequestsPerCycle; i++)
+    uint32_t TimeToNextPoll;
+
+    // work out how much time we have till the next logger poll is due
+    if (Elapsed < LoggerCycleTimeMilliseconds)
     {
-      if (ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, SlaveId))
+      const uint32_t MinElapsed = 50*1000 ;
+      const uint32_t InterruptedMaxTimeToPoll = 150 * 1000;
+
+      // handle the (most likely only at startup) condition where we happen to 
+      // immediately detect traffic & therefore get a much shorter than expected elapsed time
+      // If we detect *all* the logger traffic, Elapsed should be ~55s so allowing for a margin of
+      // error, if less than that, then we've only picked up some of it. Worst case (assuming we've
+      // just caught the tail end), the next poll will be about 2m55s later so again allowing for 
+      // a margin of error, 150s (2.5mins) should be fine
+      if ( Elapsed < MinElapsed )
+        TimeToNextPoll = InterruptedMaxTimeToPoll;
+      else
+        TimeToNextPoll = LoggerCycleTimeMilliseconds - Elapsed;
+    }
+    else
+      TimeToNextPoll = 1000u;  // if we didn't see any logger traffic, or was longer than expected
+                               // just do the one transaction, then resync
+
+    while (TimeToNextPoll)
+    {
+      if (Verbose)
+        printf("Time to next poll: %u seconds\n", TimeToNextPoll/1000u);
+
+      if (ModBusReadSolisRegisters(argv[1], &ModbusSolisRegisters, Elapsed, SlaveId))
       {
         if (Verbose)
         {
@@ -614,6 +991,11 @@ int main(int argc, char *argv[])
           printf("Current Generation - DC power o/p: %f kW\n", ModbusSolisRegisters.pac);
           printf("Meter total active power: %f kW\n", ModbusSolisRegisters.psum);
           printf("Inverter power generation today: %f kW\n", ModbusSolisRegisters.etoday);
+          printf("Battery total charge: %u kW\n", ModbusSolisRegisters.batteryTotalChargeEnergy);
+          printf("Battery total discharge: %u kW\n", ModbusSolisRegisters.batteryTotalDischargeEnergy);
+          printf("Grid power imported total: %u kW\n", ModbusSolisRegisters.gridPurchasedTotalEnergy);
+          printf("Grid power exported total: %u kW\n", ModbusSolisRegisters.gridSellTotalEnergy);
+          printf("Inverter total power generation: %u kW\n", ModbusSolisRegisters.eTotal);
         }
 
         // generate the JSON data, aligned to the Solis API
@@ -636,8 +1018,20 @@ int main(int argc, char *argv[])
       {
         printf("Failed to retrieve modbus data from inverter\n");
       }
+
+      // update how much time we have left till the next poll
+      if (TimeToNextPoll > (PollDelay+Elapsed))
+      {
+        TimeToNextPoll -= (PollDelay+Elapsed);
+        // don't go down to the wire
+        if (TimeToNextPoll < PollThreshold)
+          TimeToNextPoll = 0u;
+      }
+      else
+        TimeToNextPoll = 0u; 
+
       // don't sleep on the last cycle
-      if (i < (RequestsPerCycle - 1))
+      if (TimeToNextPoll)
       {
         // open serial port to monitor for traffic while we sleep
 #ifdef WIN32
@@ -654,7 +1048,7 @@ int main(int argc, char *argv[])
           break;
         }
 
-        sleep(PollDelay);
+        Sleep(PollDelay);
 
         // poll for any data arrived in the meantime, under normal circumstances, it shoudn't
         // EXCEPT when the logger performs it's daily reset...
