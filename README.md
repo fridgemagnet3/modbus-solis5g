@@ -15,13 +15,16 @@ Solis 5G inverters allow for the connection of a Wifi dongle which allows inform
 Additionally, Solis provide [an API](https://solis-service.solisinverters.com/en/support/solutions/articles/44002212561-api-access-soliscloud) which allows you to retrieve this same data programatically sent over https. This is packaged up as JSON encoded data which I've made use of for some time in order to retrieve both historical and current data, the latter of which I've had presented on various displays, including [@zx85's solar-display-micropython project](https://github.com/zx85/solar-display-micropython)
 
 <a name="udp-broadcast"></a>
-One significant difference is that I've taken out the functionality from the solar displays which directly interface to the Solis API. Instead, they pick the data up from UDP packets, broadcast over the local network. I therefore only have a [single application which retrieves the data, then pushes it out periodically](https://github.com/fridgemagnet3/solar-display-micropython/tree/main/solis-broadcast) - essentially it just retransmits a subset of the JSON data, as received from Solis. It needed to be a subset because the payload is well in excess of a single datagram and the ESP32 (as used in [@z85's display](https://github.com/zx85)) IP stack can't handle UDP fragmentation. This then means I can also easily swap out where the data comes from - the Solis cloud or (as is [described later](#modbus-solis-broadcast)) locally from the inverter. 
+One significant difference is that I've taken out the functionality from the solar displays which directly interface to the Solis API. Instead, they pick the data up from UDP packets, broadcast over the local network. I therefore only have a [single application which retrieves the data, then pushes it out periodically](https://github.com/fridgemagnet3/solar-display-micropython/tree/main/solis-broadcast) - essentially it just retransmits a subset of the JSON data, as received from Solis. It needed to be a subset because the payload is well in excess of a single datagram and the ESP32 (as used in [@zx85's display](https://github.com/zx85)) IP stack can't handle UDP fragmentation. This then means I can also easily swap out where the data comes from - the Solis cloud or (as is [described later](#modbus-solis-broadcast)) locally from the inverter. 
 
 [/fridgemagnet3/solar-display-micropython](https://github.com/fridgemagnet3/solar-display-micropython) is my fork of @zx85's solar display which receives it's data via UDP instead of directly from the Solis cloud API.
 
 The aim of this project was to bypass the need to go via the Solis Wifi dongle, cloud and API and instead obtain the current data directly from the inverter. Aside from cutting out these additional steps, the dongle only updates the cloud data every 5 minutes and I wanted to refresh data at a much higher rate, at least every minute. This also then offers better response times for making decisions based around the data, for example using surplus energy to heat our hot water rather than exporting it, within the current arrangement, it's entirely feasible you could end up importing energy should the sun go behind a cloud seconds after the last set of data is pushed up to the cloud.
 
 An additional requirement though was, (unlike a number of other articles which have explored this) to continue to allow the Wifi dongle to remain in play. Hence whatever I came up with would need to cooperate with it.
+
+## Solis Cloud Control API
+If you use the Solis Cloud Control API for controlling your inverter (eg. via the Solis app or HA component), there is evidence to suggest those requests are actioned immediately by the datalogger ie. outside of the normally polling cycle. As such, there is scope for these to then fail if they happen to occur when _modbus-solis-broadcast_ (or the ESP equivalant) is performing a transction. Retrying the request immediately afterwards should then succeed because those apps are designed to 'back off' under those conditions and re-sync with the next datalogger polling cycle however only limited testing has been performed in this area.
 
 ## Interfacing overview
 The physical interface between the inverter and the Wifi dongle is a serial RS485 interface, using a [Modbus RTU](https://en.wikipedia.org/wiki/Modbus) protocol. It connects via a 4 pin, Exceedconn EC04681-2023BF (or 2014BF) connector which provides a 5V supply to the dongle and the RS485 differential pair.
@@ -38,12 +41,9 @@ The second part replaced this with an ESP32 microcontroller, powered of the 5V s
 
 ![20250301_170933](https://github.com/user-attachments/assets/4aea6824-fb2a-4ca0-a5db-8a98bb198143)
 
-Thanks to [@z85](https://github.com/zx85) for the 3D printed case.
+Thanks to [@zx85](https://github.com/zx85) for the 3D printed case.
 
 ![PXL_20250505_122722543 MACRO_FOCUS](https://github.com/user-attachments/assets/8b201774-31a7-448d-b5b4-102050755da1)
-
-## Solis Cloud Control API
-If you use the Solis Cloud Control API for controlling your inverter (eg. via the Solis app or HA component), there is evidence to suggest those requests are actioned immediately by the datalogger ie. outside of the normally polling cycle. As such, there is scope for these to then fail if they happen to occur when modbus-solis-broadcast (or the ESP equivalant) is performing a transction. Retrying the request immediately afterwards should then succeed because those apps are designed to 'back off' under those conditions and re-sync with the next datalogger polling cycle however only limited testing has been performed in this area.
 
 ### Spurious characters
 In my setup, the inverter/datalogger can induce spurious characters on the serial line probably when the transmitters are being turned on or off. My RS485/USB adapter that I used during the first part of the project seemed particularly prone to this. This seems to materialise as up to 3 NULL bytes which I believe are actually _serial break_ characters (or framing errors). For directly attached devices, you can often filter these out via _stty_ settings however with a USB bridge in the way, they are treated as actual NULL bytes. 
