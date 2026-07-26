@@ -4,11 +4,9 @@ This is a collection of some applications, tools and utilities I've put together
 
 ## !! Check your DataLogger version !!
 
-It's transpired that different versions of firmware in the datalogger behave radically differently, as a result you may NOT see the same behaviour I describe below with your setup. For example, version 10154 consumes most of bandwidth of the 5 minute cycle polling for non-existent slaves, whereas the version I have, only performs this over a half hour period after coming out of reset.
+It's transpired that different versions of firmware in the datalogger behave radically differently, as a result you may NOT see the same behaviour I describe below with your setup. As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast) and [modbus-esp32](#modbus-esp32) apps work against firmware version **13230**. Likewise the [modbus-slave](#modbus-slave) app will be mimicing the behaviour of that same version of datalogger. As such I strongly recommend using the [modbus-sniffer](#modbus-sniffer) app first to ascertain the exact behaviour of your datalogger.
 
-As such I can only confirm the [modbus-solis-broadcast](#modbus-solis-broadcast) and [modbus-esp32](#modbus-esp32) apps work against firmware version **13230**. Likewise the [modbus-slave](#modbus-slave) app will be mimicing the behaviour of that same version of datalogger. As such I strongly recommend using the [modbus-sniffer](#modbus-sniffer) app first to ascertain the exact behaviour of your datalogger.
-
-It _may_ also work with older and newer (if they exist) versions however no guarantees.
+It _may_ also work with older and newer (if they exist) versions however no guarantees. Also check my branches as there may be a variant that is a closer match to your firmware than current.
 
 ## Background
 
@@ -44,15 +42,20 @@ Thanks to [@z85](https://github.com/zx85) for the 3D printed case.
 
 ![PXL_20250505_122722543 MACRO_FOCUS](https://github.com/user-attachments/assets/8b201774-31a7-448d-b5b4-102050755da1)
 
-### Spurious characters
-I believe that the invertor (and possibly the Wifi logger as well) is generating spurious characters on the serial line in or around the time it responds to a request. This can be seen in the [sample log file](data/2024-11-08_12-07-44.log) where it reports things like _Skipped 2 bytes in stream looking for next header_. In the case of the RS485/USB adaptor used during the first part of the project, this seems to materialise as up to 3 NULL bytes which I believe are actually _serial break_ characters (or framing errors). Where the ESP-32 module is concerned, I see just random characters. In the process of investigating this, I've tried adding in termination resistors (to the connectors at both end of the cable since I don't believe either the interter or logger has them) and bias reistors (even though I don't believe the MAX devices need them). Neither of which has made any difference, which based on the behaviour I was seeing, frankly didn't think it would. 
+## Solis Cloud Control API
+If you use the Solis Cloud Control API for controlling your inverter (eg. via the Solis app or HA component), there is evidence to suggest those requests are actioned immediately by the datalogger ie. outside of the normally polling cycle. As such, there is scope for these to then fail if they happen to occur when modbus-solis-broadcast (or the ESP equivalant) is performing a transction. Retrying the request immediately afterwards should then succeed because those apps are designed to 'back off' under those conditions and re-sync with the next datalogger polling cycle however only limited testing has been performed in this area.
 
-As an extra observation, as part of my simulated test setup, I've had the ESP-32 module connected directly to the RS485/USB module. In this configuration, the USB module was still detecting framing errors at around the point the ESP turned off it's transmitters. However the data received by the ESP was rock solid.
+### Spurious characters
+In my setup, the inverter/datalogger can induce spurious characters on the serial line probably when the transmitters are being turned on or off. My RS485/USB adapter that I used during the first part of the project seemed particularly prone to this. This seems to materialise as up to 3 NULL bytes which I believe are actually _serial break_ characters (or framing errors). For directly attached devices, you can often filter these out via _stty_ settings however with a USB bridge in the way, they are treated as actual NULL bytes. 
+
+Directly attached RS485 adapters (eg. the MAX3485 I use with the ESP-32) seemed less prone to this however I still get the odd random character appear. In the process of investigating this, I've tried adding in termination resistors (to the connectors at both end of the cable since I don't believe either the interter or logger has them) and bias reistors (even though I don't believe the MAX devices need them). Neither of which has made any difference, which based on the behaviour I was seeing, frankly didn't think it would. 
 
 As a result, I've had to implement software workarounds, in effect to discard any incoming bytes up until the expected start of response sequence is detected. In the case of the Linux applications, this is in the form of a patch against the current. 3.1.11 release of the libmodbus library, this can be found in the [libmodbus folder](libmodbus/). For the ESP-32 module, I've created a fork of the [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster) library.
 
-## Daily reset
-To be updated...
+## Datalogger reset
+Every 12 hours, the datalogger appears to perform some form of reset/restart sequence. Additionally, over time the reset point may move (possibly to even out load on Solis's servers) so you may see a cycle time less than 12 hours from time to time. After the reset event (and immediately after power on), the logger performs a sustained series of repeated register reads, [slave polls](#modbus-solis-broadcast) which may occupy the bus constantly anywhere from 15-30 minutes. [data/logger-reset.ods][data/logger-reset.ods] shows an example of this behaviour. 
+
+The [modbus-solis-broadcast](#modbus-solis-broadcast) app (and [ESP-32 equivalent](#modbus-esp32)) are both designed to try and detect and then suspend initiating transactions whilst the logger does it's thing (whatever that may be). This of course means that for the duration, no (or limited) updates will be performed by the software. However given the unpredictable nature of when this reset may occur, there is scope for odd things to occur in this time period, historically the datalogger has shown itself to be senstive to other unexpected bus traffic occurring during this period.
 
 ## ESP-32 Module
 For the finished product, I replaced the Raspberry Pi with an ESP32 WROOM-32 module. These are inexpensive, nifty little microcontrollers which have a bunch of I/O (including serial) plus built in Wifi. 
@@ -88,20 +91,18 @@ In this picture, I'm still powering it from the micro-USB connector, those two u
 ![stripboard](https://github.com/user-attachments/assets/92398d00-1148-46f1-81ac-eb5e879a39ba)
 
 ## Software
-There are 4 distinct applications currently here. The first 3 are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however these only offer limited functionality, in particular anything that does direct serial port receives & transmits won't work plus you'll need to get hold off and/or build the additional libraries. In short, these were really more for me to do some initial offline debug & test. The fourth application is the [Arduino sketch for the ESP32.](#modbus-esp32)
+There are 4 distinct applications currently here. The first 3 are designed to be built under any recent Linux distro using the provided makefiles. Dependencies are shown in the sections below for each app. It's also possible to build these as well under Windows and Visual Studio projects are provided however you'll need to get hold off and/or build the additional libraries. The fourth application is the [Arduino sketch for the ESP32.](#modbus-esp32)
 
 The RS485 link runs at 9600, 8 bits, 1 stop bit, no parity. None of the Linux applications which interface to the serial ports directly configure any of the serial settings, you'll need to do that first by hand which is normally just a case of doing something like:
 
 `stty -F /dev/ttyUSB0 9600 raw -echo`
 
-**Note that the datalogger behaviour described below has yet to be updated to reflect the 13230 firmware**
-
 ### modbus-sniffer
 Dependencies: boost-crc, boost-datetime (sudo apt-get install libboost-dev libboost-date-time-dev)
 
-As the name suggests, this is an app designed to sniff traffic on the serial link, essentially to capture and profile the transactions performed by the wifi dongle. From this I was able to asertain that the wifi dongle, for the most part only ever performs relatively short transactions, every minute and retrieves the bulk of the data every 5 minutes. This also let me determine which of the, several Solis Modbus documents that are out there correspond to the register set of the inverter, that being [this document](https://www.scss.tcd.ie/Brian.Coghlan/Elios4you/RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf). Based on this, the tool will also decode a (very limited) subset of the registers, in turn when then allowed me to figure out how to decode the [registers holding active generation data](registers.txt)
+As the name suggests, this is an app designed to sniff traffic on the serial link, essentially to capture and profile the transactions performed by the wifi dongle. This also let me determine which of the, several Solis Modbus documents that are out there correspond to the register set of the inverter, that being [this document](https://www.scss.tcd.ie/Brian.Coghlan/Elios4you/RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf). Based on this, the tool will also decode a (very limited) subset of the registers, in turn when then allowed me to figure out how to decode the [registers holding active generation data](registers.txt)
 
-The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data), included an annotated spreadsheet, generated from the csv. This shows the typical wifi dongle behaviour as a result of leaving the sniffer running for a couple of days.
+The app also has some additional options which allow the creation of a .csv file (for import into Excel or similar) for measuring timings over a longer period and recording of the bus traffic (which itself can then be replayed back by the tool if need be). There's some sample artefacts in the [data folder](data).
 
 Example usage:
 
@@ -112,18 +113,27 @@ Dependencies: boost-chrono, boost-datetime, boost-system, cjson, libmodbus (sudo
 
 This is the app that actually issues Modbus requests to the inverter to retrieve the current solar metrics. It then JSON encodes them, using the same naming convention as the Solis API and [sends them out as a broadcast UDP packet](#udp-broadcast) on port 52005. 
 
-To achieve the requirement of cooperating with the Wifi dongle, the application first waits for the next burst of serial traffic on the link (signalling the dongle performing a transaction with the inverter). It then waits for a 10s period of inactivity on the bus, ensuring that the dongle has finished. At which point it then issues requests to read the necssary registers holding the current solar generation data, which if successful are then sent as a UDP broadcast to the local network. It then performs this process twice more, with a 20s wait between each request before then looping back to sync with the wifi dongle. Under normal circumstances, this results in the solar displays being updated every 20s. There are some [sample logs in the data section](data/).
+Under normal conditions, every 5 minutes the datalogger retrieves many of the input registers from the inverter (these then form the source of the information stored in the cloud). The datalogger itself can talk to up to 10 inverters (or Modbus slaves) & after the register retrieval has been completed, it then proceeds to issue 4 register read requests (with a 3 second timeout between each read) to slaves 2 through 10. In a system with only one inverter (slave 1), these will all time out. This process takes just over 2 minutes to complete. [data/13230_traffic.log](data/13230_traffic.log) and [data/13230_traffic.ods](data/13230_traffic.ods) show this behaviour.
+
+This effectively locks out the bus for that period, therefore the _modbus-solis-broadcast_ app monitors for those redundant slave requests and answers them with a Modbus exception code. This then reduces the busy time to ~45s. The trace in [data/13230_slaves_answered.ods](data/13230_slaves_answered.ods) depicts this behaviour. It then waits for a 10s period of inactivity on the bus, ensuring that the dongle has finished. At which point it then issues requests to read the necssary registers holding the current solar generation data, which if successful are then sent as a UDP broadcast to the local network. It then performs this process for the remainder of the 5 minute window, with a 16s wait between each request before then looping back to sync with the wifi dongle. 
 
 Example usage:
 
 ``./modbus-solis-broadcast /dev/ttyUSB0``
+
+#### Using a directly attached RS485 adapter with a Raspberry Pi
+The app was primarily designed to work with something like a USB/RS485 adapter where the turning on/off of the transceivers is managed automatically by the device. However it can also be used on a Raspberry Pi with something like a MAX4385 chip connected to the Pi's UART - in effect, a similar setup to that used with the [ESP-32 setup](#RS-485). With this configuration, the transceivers need to be managed under software control, using one (or two) of the Pi's GPIO lines. 
+
+To configure the software to work in this mode, you first need to build and install the [WiringPi](https://github.com/WiringPi/WiringPi) library on the Pi. Then edit the [modbus-solis-broadcast/modbus-solis-broadcast.cpp](modbus-solis-broadcast/modbus-solis-broadcast.cpp] file and set the RS485_RE (and/or RS485_DE) definitions to match those connected to the MAX device. Then build as follows:
+
+``RPI=1 make``
 
 ### modbus-slave
 Dependencies: boost-chrono, boost-datetime, boost-system, libmodbus (sudo apt-get install libboost-chrono-dev libboost-date-time-dev libboost-system-dev libmodbus-dev)
 
 modbus-slave does a passable emulation of the Solis inverter and wifi dongle. If you use a serial crossover cable between two 232 ports, you can then use the modbus-sniffer and/or modbus-solis-broadcast to test the behaviour in a simulated environment.
 
-By default, it will generate simulated Modbus transactions, which would normally be initiated by the dongle, every minute. If you use the modbus-sniffer app, you should be able to see these arrive and be decoded. It will also respond to Modbus register queries (for example, as issued by the modbus-solis-broadcast app), responsing with fixed register values taken from my own inverter. The periodic transactions can also be disabled, if required via a command line option, in which case it will simply listen to and respond with register requests.
+By default, it will generate simulated Modbus transactions, which would normally be initiated by the dongle, five minutes. If you use the modbus-sniffer app, you should be able to see these arrive and be decoded. It will also respond to Modbus register queries (for example, as issued by the modbus-solis-broadcast app), responsing with fixed register values taken from my own inverter. The periodic transactions can also be disabled, if required via a command line option, in which case it will simply listen to and respond with register requests.
 
 I developed this primarily to support test & debug of the ESP32 solution, prior to connecting it to the inverter.
 
