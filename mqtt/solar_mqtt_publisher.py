@@ -159,9 +159,12 @@ ha_logger_fails_discover = '''
 }
 '''
 
-def convert_units(value,actual_units,required_units):
+def convert_units(value,actual_units,required_units,as_string=True):
     if actual_units==required_units:
-        return str(value)
+        if as_string:
+            return str(value)
+        else:
+            return float(value)
 
     # convert to W - lowest common denominator
     if 'kW' in actual_units:
@@ -175,16 +178,28 @@ def convert_units(value,actual_units,required_units):
         
     # convert to desired units
     if 'kW' in required_units:
-        value = str(round(value/1000,1))
+        value = round(value/1000,1)
     elif 'MW' in required_units:
-        value = str(round(value/1000/1000,2))
+        value = round(value/1000/1000,2)
     elif 'GW' in required_units:
-        value = str(round(value/1000/1000/1000,3))
-    else:
+        value = round(value/1000/1000/1000,3)
+
+    if as_string:
         value = str(value)
-    
     return value
-    
+
+def validate_reading(current,last):
+    # nothing to go by if this is the first time thru
+    if last==0:
+        return True
+    # nothing should jump by this much
+    # between readings
+    if abs(current-last)>50:
+        return False
+    if current>=last:
+        return True
+    return False
+
 def on_mqtt_connect(client, userdata, flags, rc):
     print("broker connect: %d" %(rc))
     if rc!=0:
@@ -221,11 +236,11 @@ mqttc.publish("homeassistant/sensor/solar/gridPurchasedTotalEnergy/config",ha_gr
 mqttc.publish("homeassistant/sensor/solar/gridSellTotalEnergy/config",ha_grid_sell_discover,retain=True)
 mqttc.publish("homeassistant/sensor/solar/solisLoggerFailureCount/config",ha_logger_fails_discover,retain=True)
 
-last_etotal = "0.0"
-last_batteryTotalChargeEnergy = "0"
-last_batteryTotalDischargeEnergy = "0"
-last_gridPurchasedTotalEnergy = "0"
-last_gridSellTotalEnergy = "0"
+last_etotal = 0
+last_batteryTotalChargeEnergy = 0
+last_batteryTotalDischargeEnergy = 0
+last_gridPurchasedTotalEnergy = 0
+last_gridSellTotalEnergy = 0
 
 while True:
     # wait for and fetch next solar UDP packet
@@ -290,39 +305,39 @@ while True:
         # total battery charged
         batteryTotalChargeEnergy = convert_units(json_solar_data['data']['batteryTotalChargeEnergy'],
                                                  json_solar_data['data']['batteryTotalChargeEnergyStr'],
-                                                                         "kWh")
-        if batteryTotalChargeEnergy>=last_batteryTotalChargeEnergy:
-            mqttc.publish("solar/batteryTotalChargeEnergy",batteryTotalChargeEnergy)
+                                                                         "kWh",False)
+        if validate_reading(batteryTotalChargeEnergy,last_batteryTotalChargeEnergy):
+            mqttc.publish("solar/batteryTotalChargeEnergy",str(batteryTotalChargeEnergy))
             last_batteryTotalChargeEnergy=batteryTotalChargeEnergy
 
         # total battery discharged
         batteryTotalDischargeEnergy = convert_units(json_solar_data['data']['batteryTotalDischargeEnergy'],
                                                     json_solar_data['data']['batteryTotalDischargeEnergyStr'],
-                                                    "kWh")
-        if batteryTotalDischargeEnergy>=last_batteryTotalDischargeEnergy:
-            mqttc.publish("solar/batteryTotalDischargeEnergy",batteryTotalDischargeEnergy)
+                                                    "kWh",False)
+        if validate_reading(batteryTotalDischargeEnergy,last_batteryTotalDischargeEnergy):
+            mqttc.publish("solar/batteryTotalDischargeEnergy",str(batteryTotalDischargeEnergy))
             last_batteryTotalDischargeEnergy = batteryTotalDischargeEnergy
 
         # total energy imported
         gridPurchasedTotalEnergy = convert_units(json_solar_data['data']['gridPurchasedTotalEnergy'],
                                                  json_solar_data['data']['gridPurchasedTotalEnergyStr'],
-                                                 "kWh")
-        if gridPurchasedTotalEnergy>=last_gridPurchasedTotalEnergy:
-            mqttc.publish("solar/gridPurchasedTotalEnergy",gridPurchasedTotalEnergy)
+                                                 "kWh",False)
+        if validate_reading(gridPurchasedTotalEnergy,last_gridPurchasedTotalEnergy):
+            mqttc.publish("solar/gridPurchasedTotalEnergy",str(gridPurchasedTotalEnergy))
             last_gridPurchasedTotalEnergy = gridPurchasedTotalEnergy
 
         # total energy exported
         gridSellTotalEnergy = convert_units(json_solar_data['data']['gridSellTotalEnergy'],
                                             json_solar_data['data']['gridSellTotalEnergyStr'],
-                                            "kWh")
-        if gridSellTotalEnergy>=last_gridSellTotalEnergy:
-            mqttc.publish("solar/gridSellTotalEnergy",gridSellTotalEnergy)
+                                            "kWh",False)
+        if validate_reading(gridSellTotalEnergy,last_gridSellTotalEnergy):
+            mqttc.publish("solar/gridSellTotalEnergy",str(gridSellTotalEnergy))
             last_gridSellTotalEnergy = gridSellTotalEnergy
 
         # total generation
-        eTotal = convert_units(json_solar_data['data']['eTotal'],json_solar_data['data']['eTotalStr'],"kWh")
-        if eTotal>=last_etotal:
-            mqttc.publish("solar/etotal",eTotal)
+        eTotal = convert_units(json_solar_data['data']['eTotal'],json_solar_data['data']['eTotalStr'],"kWh",False)
+        if validate_reading(eTotal,last_etotal):
+            mqttc.publish("solar/etotal",str(eTotal))
             last_etotal = eTotal
 
     except:
