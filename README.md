@@ -53,7 +53,7 @@ Directly attached RS485 adapters (eg. the MAX3485 I use with the ESP-32) seemed 
 As a result, I've had to implement software workarounds, in effect to discard any incoming bytes up until the expected start of response sequence is detected. In the case of the Linux applications, this is in the form of a patch against the current. 3.1.11 release of the libmodbus library, this can be found in the [libmodbus folder](libmodbus/). For the ESP-32 module, I've created a fork of the [ModbusMaster](https://github.com/fridgemagnet3/ModbusMaster) library.
 
 ## Datalogger reset
-Every 12 hours, the datalogger appears to perform some form of reset/restart sequence. Additionally, over time the reset point may move (possibly to even out load on Solis's servers) so you may see a cycle time less than 12 hours from time to time. After the reset event (and immediately after power on), the logger performs a sustained series of repeated register reads, [slave polls](#modbus-solis-broadcast) which may occupy the bus constantly anywhere from 15-30 minutes. [data/logger-reset.ods][data/logger-reset.ods] shows an example of this behaviour. 
+Every 12 hours, the datalogger appears to perform some form of reset/restart sequence. Additionally, over time the reset point may move (possibly to even out load on Solis's servers) so you may see a cycle time less than 12 hours from time to time. After the reset event (and immediately after power on), the logger performs a sustained series of repeated register reads, [slave polls](#modbus-solis-broadcast) which may occupy the bus constantly anywhere from 15-30 minutes. [data/logger-reset.ods](data/logger-reset.ods) shows an example of this behaviour. 
 
 The [modbus-solis-broadcast](#modbus-solis-broadcast) app (and [ESP-32 equivalent](#modbus-esp32)) are both designed to try and detect and then suspend initiating transactions whilst the logger does it's thing (whatever that may be). This of course means that for the duration, no (or limited) updates will be performed by the software. However given the unpredictable nature of when this reset may occur, there is scope for odd things to occur in this time period, historically the datalogger has shown itself to be senstive to other unexpected bus traffic occurring during this period.
 
@@ -124,7 +124,7 @@ Example usage:
 #### Using a directly attached RS485 adapter with a Raspberry Pi
 The app was primarily designed to work with something like a USB/RS485 adapter where the turning on/off of the transceivers is managed automatically by the device. However it can also be used on a Raspberry Pi with something like a MAX4385 chip connected to the Pi's UART - in effect, a similar setup to that used with the [ESP-32 setup](#RS-485). With this configuration, the transceivers need to be managed under software control, using one (or two) of the Pi's GPIO lines. 
 
-To configure the software to work in this mode, you first need to build and install the [WiringPi](https://github.com/WiringPi/WiringPi) library on the Pi. Then edit the [modbus-solis-broadcast/modbus-solis-broadcast.cpp](modbus-solis-broadcast/modbus-solis-broadcast.cpp] file and set the RS485_RE (and/or RS485_DE) definitions to match those connected to the MAX device. Then build as follows:
+To configure the software to work in this mode, you first need to build and install the [WiringPi](https://github.com/WiringPi/WiringPi) library on the Pi. Then edit the [modbus-solis-broadcast/modbus-solis-broadcast.cpp](modbus-solis-broadcast/modbus-solis-broadcast.cpp) file and set the RS485_RE (and/or RS485_DE) definitions to match those connected to the MAX device. Then build as follows:
 
 ``RPI=1 make``
 
@@ -133,7 +133,7 @@ Dependencies: boost-chrono, boost-datetime, boost-system, libmodbus (sudo apt-ge
 
 modbus-slave does a passable emulation of the Solis inverter and wifi dongle. If you use a serial crossover cable between two 232 ports, you can then use the modbus-sniffer and/or modbus-solis-broadcast to test the behaviour in a simulated environment.
 
-By default, it will generate simulated Modbus transactions, which would normally be initiated by the dongle, five minutes. If you use the modbus-sniffer app, you should be able to see these arrive and be decoded. It will also respond to Modbus register queries (for example, as issued by the modbus-solis-broadcast app), responsing with fixed register values taken from my own inverter. The periodic transactions can also be disabled, if required via a command line option, in which case it will simply listen to and respond with register requests.
+By default, it will generate simulated Modbus transactions, which would normally be initiated by the dongle, every five minutes. If you use the modbus-sniffer app, you should be able to see these arrive and be decoded. It will also respond to Modbus register queries (for example, as issued by the modbus-solis-broadcast app), responsing with fixed register values taken from my own inverter. The periodic transactions can also be disabled, if required via a command line option, in which case it will simply listen to and respond with register requests.
 
 I developed this primarily to support test & debug of the ESP32 solution, prior to connecting it to the inverter.
 
