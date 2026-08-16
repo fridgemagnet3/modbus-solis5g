@@ -241,6 +241,8 @@ last_batteryTotalChargeEnergy = 0
 last_batteryTotalDischargeEnergy = 0
 last_gridPurchasedTotalEnergy = 0
 last_gridSellTotalEnergy = 0
+last_etoday = 0
+last_date = datetime.date.today()
 
 while True:
     # wait for and fetch next solar UDP packet
@@ -288,13 +290,23 @@ while True:
             # total generation today
             etoday = convert_units(json_solar_data['data']['eToday'],
                                    json_solar_data['data']['eTodayStr'],
-                                   "kWh")
+                                   "kWh",False)
             # publish
             mqttc.publish("solar/batteryCapacitySoc",batteryCapacitySoc)
             mqttc.publish("solar/batteryPower",batteryPower)
             mqttc.publish("solar/pac",pac)
             mqttc.publish("solar/psum",psum)
             mqttc.publish("solar/familyLoadPower",familyLoadPower)
+            # avoid ocsillations around midnight
+            # total should never be less than previous for the same day
+            if etoday<last_etoday and datetime.date.today()==last_date:
+                # use last reading
+                etoday = last_etoday
+            else:
+                # update state trackers
+                last_etoday = etoday
+                last_date = datetime.date.today()
+            etoday = str(etoday)                
             mqttc.publish("solar/etoday",etoday)
 
         # there seems to be some discrepency between the cumulative totals reported
