@@ -80,7 +80,7 @@ public :
   }
 
   // send response frame back to TCP client
-  bool TcpSendResponse( int Sfd, uint16_t TransactionId) const;
+  bool TcpSendResponse( int Sfd, uint16_t TransactionId) ;
 
   // get register data
   const uint16_t *GetRegisterData(void) const
@@ -127,28 +127,58 @@ public :
   bool PerformRTUTransaction(ModbusMaster &ModbusInst);
 
   // indicates if this ADU is considered stale based on age
-  bool IsStale(void) const
+  bool IsStale(void)
   {
+    const unsigned long FiveMinutes = 5*60*1000 ;
+    const unsigned long TenMinutes = FiveMinutes*2 ;
+
     if (!Processed)
       return false;
 
-    // write transactions don't ever go stale
-    if (IsWriteTransaction())
-      return false;
+    auto Now = millis() ;
 
-    // holding registers (apart from the clock) are mostly controls
-    // so shouldn't really change that often
-    if ( Transaction == HOLDING_REGISTERS )
+    if (IsWriteTransaction())
     {
-      if ( millis()-ProcessTime > 5*60*1000 )
+      // if the last write request was >5 minutes, mark as stale
+      if (TcpSent && ((Now-TcpSentTime) > FiveMinutes) )
         return true;
+
+      // if the last update was >10 minutes ago (& nothing has requested it since)
+      // mark as stale
+      if ( (Now-ProcessTime) > TenMinutes )
+        return true;
+
+      return false;
+    }
+
+    // anything that was last requested >10 minutes ago, stale off
+    if (TcpSent && ((Now-TcpSentTime) > TenMinutes) )
+      return true;
+
+    // check to see last time we updated the register content and force a refresh if it's getting old
+    if (Transaction == HOLDING_REGISTERS)
+    {
+      if ((Now-ProcessTime) > FiveMinutes)
+      {
+        // only refresh if client has actually ever requested it
+        if (TcpSent)
+          Reset();
+        else
+          return true;
+      }
     }
     else
     {
       // fractionally over 1 minute to allow for HA Solis Modbus slow poll interval plus
       // our "normal" poll of 16s
-      if ( millis()-ProcessTime > 80*1000 )
-        return true;
+      if ( Now-ProcessTime > (80*1000) )
+      {
+        // only refresh if client has actually ever requested it
+        if (TcpSent)
+          Reset();
+        else
+          return true;
+      }
     }
 
     return false;
@@ -159,7 +189,7 @@ public :
   bool InvalidateAdu(const ModbusTcpAdu &Other);
 
   // generate string with transaction info - for diag purposes
-  void GetTransactionString(char *Buf, uint32_t BufSz)
+  void GetTransactionString(char *Buf, uint32_t BufSz) const
   {
     snprintf(Buf,BufSz, "%s (%hu) RegBase: %hu: Count: %hu", 
         FunctionDescriptions[FunctionCode], (uint16_t)FunctionCode, RegisterAddress, RegisterCount) ;
@@ -174,6 +204,12 @@ private :
       return true;
     else
       return false;
+  }
+
+  // reset ADU state to unprocessed
+  void Reset(void)
+  {
+    Processed = false;
   }
 
   // client socket
@@ -202,6 +238,12 @@ private :
 
   // timestamp when this transaction was processed
   unsigned long ProcessTime;
+
+  // indicates if this ADU has been sent to a TCP client
+  bool TcpSent = false ;
+
+  // timestamp when this transaction was processed
+  unsigned long TcpSentTime ;
 
   // mutex used to lock write register transactions
   StaticSemaphore_t  MutexBuffer;
