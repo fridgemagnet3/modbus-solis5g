@@ -22,7 +22,10 @@ const uint8_t ModbusTcpAdu::FCodeWriteMultiple = 16;
 std::map<uint8_t,std::string> ModbusTcpAdu::FunctionDescriptions;
 
 // attempt to construct a modbus TCP ADU from the supplied frame data
-ModbusTcpAdu::ModbusTcpAdu(SOCKET Sfd, const uint8_t *Frame, uint32_t Len) : Sfd(Sfd)
+ModbusTcpAdu::ModbusTcpAdu(SOCKET Sfd, const uint8_t *Frame, uint32_t Len) : 
+              Sfd(Sfd), 
+              LastTcpSentTime(boost::chrono::steady_clock::now()),
+              ClientPollTime(3600)  // 1 hour
 {
   // initialise description lookup on first run - used for diagnostic reporting
   if (FunctionDescriptions.empty())
@@ -313,9 +316,13 @@ bool ModbusTcpAdu::TcpSendResponse(SOCKET Sfd, uint16_t TransactionId)
   {
     TcpSent = true;
     TcpSentTime = boost::chrono::steady_clock::now();
+    // work out the client's polling interval
+    ClientPollTime = boost::chrono::duration_cast<boost::chrono::seconds>(TcpSentTime - LastTcpSentTime);
+    LastTcpSentTime = TcpSentTime;
+    return true;
   }
-
-  return TcpSent;
+  else
+    return false;
 }
 
 // create a modbus RTU session

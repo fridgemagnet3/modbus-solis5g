@@ -133,34 +133,31 @@ public :
       return false;
     }
 
-    // anything that was last requested >10 minutes ago, stale off
-    if (TcpSent && Now > (TcpSentTime + boost::chrono::minutes(10)))
+    // anything that was last >2 polls ago, mark as stale
+    if (TcpSent && Now > (TcpSentTime + (ClientPollTime*3)))
       return true;
 
-    // check to see last time we updated the register content and force a refresh if it's getting old
-    if (Transaction == HOLDING_REGISTERS)
+    // now work out when we should next refresh the transaction
+    if (TcpSent)
     {
-      if (Now > (ProcessTime + boost::chrono::minutes(5)))
+      // bail if already got something newer to send
+      if (ProcessTime > TcpSentTime)
+        return false;
+
+      // this is a rough aproximation of our RTU polling - slightly higher
+      // so we force a refresh earlier than necessary rather than missing our window
+      const boost::chrono::seconds MinPollTolerance(20);
+
+      // if the client is requesting at a higher rate, then refresh every cycle
+      if (ClientPollTime < MinPollTolerance)
       {
-        // only refresh if client has actually ever requested it
-        if (TcpSent)
-          Reset();
-        else
-          return true;
+        Reset();
+        return false;
       }
-    }
-    else
-    {
-      // fractionally over 1 minute to allow for HA Solis Modbus slow poll interval plus
-      // our "normal" poll of 16s
-      if (Now > (ProcessTime + boost::chrono::seconds(80)))
-      {
-        // only refresh if client has actually ever requested it
-        if (TcpSent)
-          Reset();
-        else
-          return true;
-      }
+
+      // force a refresh as we get close to the next time the client is going to make a request
+      if ( TcpSentTime + ClientPollTime - MinPollTolerance < Now )
+        Reset();
     }
 
     return false;
@@ -238,6 +235,12 @@ private :
 
   // timestamp when this transaction was processed
   boost::chrono::steady_clock::time_point TcpSentTime;
+
+  // timestamp when this ADU was created
+  boost::chrono::steady_clock::time_point LastTcpSentTime;
+
+  // Modbus TCP client polling time
+  boost::chrono::seconds ClientPollTime;
 
   // mutex used to lock write register transactions
   boost::mutex WriteMutex;
