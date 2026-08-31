@@ -129,9 +129,6 @@ public :
   // indicates if this ADU is considered stale based on age
   bool IsStale(void)
   {
-    const unsigned long FiveMinutes = 5*60*1000 ;
-    const unsigned long TenMinutes = FiveMinutes*2 ;
-
     if (!Processed)
       return false;
 
@@ -139,6 +136,9 @@ public :
 
     if (IsWriteTransaction())
     {
+      const unsigned long FiveMinutes = 5*60*1000 ;
+      const unsigned long TenMinutes = FiveMinutes*2 ;
+
       // if the last write request was >5 minutes, mark as stale
       if (TcpSent && ((Now-TcpSentTime) > FiveMinutes) )
         return true;
@@ -151,36 +151,32 @@ public :
       return false;
     }
 
-    // anything that was last requested >10 minutes ago, stale off
-    if (TcpSent && ((Now-TcpSentTime) > TenMinutes) )
+    // anything that was last sent >2 polls ago, mark as stale
+    if (TcpSent && ((Now-TcpSentTime) > (ClientPollTime*3)) )
       return true;
 
-    // check to see last time we updated the register content and force a refresh if it's getting old
-    if (Transaction == HOLDING_REGISTERS)
+    // now work out when we should next refresh the transaction
+    if (TcpSent)
     {
-      if ((Now-ProcessTime) > FiveMinutes)
-      {
-        // only refresh if client has actually ever requested it
-        if (TcpSent)
-          Reset();
-        else
-          return true;
-      }
-    }
-    else
-    {
-      // fractionally over 1 minute to allow for HA Solis Modbus slow poll interval plus
-      // our "normal" poll of 16s
-      if ( Now-ProcessTime > (80*1000) )
-      {
-        // only refresh if client has actually ever requested it
-        if (TcpSent)
-          Reset();
-        else
-          return true;
-      }
-    }
+      // bail if already got something newer to send
+      if ((ProcessTime - TcpSentTime) < LONG_MAX )
+        return false;
 
+      // this is a rough aproximation of our RTU polling - slightly higher
+      // so we force a refresh earlier than necessary rather than missing our window
+      const unsigned long MinPollTolerance = 20 * 1000;  // ms
+
+      // if the client is requesting at a higher rate, then refresh every cycle
+      if (ClientPollTime < MinPollTolerance)
+      {
+        Reset();
+        return false;
+      }
+
+      // force a refresh as we get close to the next time the client is going to make a request
+      if ( (TcpSentTime + ClientPollTime - MinPollTolerance - Now) > LONG_MAX )
+        Reset();
+    }
     return false;
   }
 
@@ -244,6 +240,12 @@ private :
 
   // timestamp when this transaction was processed
   unsigned long TcpSentTime ;
+
+  // timestamp when this ADU was created
+  unsigned long LastTcpSentTime;
+
+  // Modbus TCP client polling time
+  unsigned long ClientPollTime;
 
   // mutex used to lock write register transactions
   StaticSemaphore_t  MutexBuffer;

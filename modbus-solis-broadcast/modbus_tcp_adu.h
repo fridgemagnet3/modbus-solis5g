@@ -133,7 +133,7 @@ public :
       return false;
     }
 
-    // anything that was last >2 polls ago, mark as stale
+    // anything that was last sent  >2 polls ago, mark as stale
     if (TcpSent && Now > (TcpSentTime + (ClientPollTime*3)))
       return true;
 

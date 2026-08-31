@@ -38,7 +38,10 @@ void ModbusTcpAdu::MemPoolInit(void)
 }
 
 // attempt to construct a modbus TCP ADU from the supplied frame data
-ModbusTcpAdu::ModbusTcpAdu(int Sfd, const uint8_t *Frame, uint32_t Len) : Sfd(Sfd)
+ModbusTcpAdu::ModbusTcpAdu(int Sfd, const uint8_t *Frame, uint32_t Len) : 
+              Sfd(Sfd),
+              LastTcpSentTime(millis()),
+              ClientPollTime(3600)  // 1 hour
 {
   WriteMutex = xSemaphoreCreateMutexStatic( &MutexBuffer );
 
@@ -309,9 +312,18 @@ bool ModbusTcpAdu::TcpSendResponse(int Sfd, uint16_t TransactionId)
   {
     TcpSent = true;
     TcpSentTime = millis();
-  }
 
-  return TcpSent;
+    // work out the client's polling interval
+
+    // don't allow fast retries to upset the poll time
+    unsigned long PollTime = TcpSentTime - LastTcpSentTime ;
+    if ( PollTime > 1000 )
+      ClientPollTime = PollTime ;
+    LastTcpSentTime = TcpSentTime;
+    return true ;
+  }
+  else
+    return false ;
 }
 
 // perform requested RTU transaction
