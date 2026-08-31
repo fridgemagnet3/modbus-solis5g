@@ -6,11 +6,11 @@ This branch currently exists as a **proof of concept** in extending the Modbus S
 
 Note: At the present time, I have only tested this in simulation with my [modbus-slave](./modbus-slave) app, it's NOT been connected to a Solis inverter. I'm still in the process of testing/verifying the software in that configuration.
 
-As a result of the updates made to support the 13230 f/w and taking advantage of the fact that for (effectively) 4 out of every 5 minutes the inverter Modbus link is now idle, I've significantly improved the scheduling behaviour from the [original branch](https://github.com/fridgemagnet3/modbus-solis5g/tree/tcp_1012f). Now, instead of issuing a limited number of requests every 20s (to the detriment of the normal UDP broadcasts), **ALL** pending transactions are actioned at the start of the poll, then the normal UDP broadcast. The net result is (generally) a much more responsive system. The exception to this is that 40-50s window when the datalogger is doing it's thing, meaning we're locked out for the duration however that can't really be helped.
+As a result of the updates made to support the 13230 f/w and taking advantage of the fact that for (effectively) 4 out of every 5 minutes the inverter Modbus link is now idle, I've significantly improved the scheduling behaviour from the [original branch](https://github.com/fridgemagnet3/modbus-solis5g/tree/tcp_1012f). Now, instead of issuing a limited number of requests every cycle (to the detriment of the normal UDP broadcasts), **ALL** pending transactions are actioned at the start of the poll, then the normal UDP broadcast. The net result is (generally) a much more responsive system. The exception to this is that 40-50s window when the datalogger is doing it's thing, meaning we're locked out for the duration however that can't really be helped.
 
 ## How it works
 
-The initial response to any TCP Modbus request is to return an exception code 6, _Server Device Busy_, the request is then added to an internal queue to be serviced on the next 20s cycle. The next time the client makes the same request (and in the case of a write, with the same data), the response from the register access is returned. The following packet trace shows this behaviour:
+The initial response to any TCP Modbus request is to return an exception code 6, _Server Device Busy_, the request is then added to an internal queue to be serviced on the next Modbus poll (~20s) cycle. The next time the client makes the same request (and in the case of a write, with the same data), the response from the register access is returned. The following packet trace shows this behaviour:
 
 ```
 No.     Time        Source                Destination           Protocol Length Info
@@ -52,7 +52,7 @@ Modbus
     Reference Number: 43003
     Data: 000d
 ```
-Input register reads are cached for 1 minute, holding registers for 5 minutes (on the basis the latter are more likely only to change when updated by an external write). 
+Register reads are cached based on the client polling interval and should (for the most part) refresh at near enough the next time the client requests them. The exception to this being if the polling interval is less than the Modbus transaction cycle (~20s) OR during datalogger busy periods.
 
 This works quite nicely with [fboundy's ha_solis_modbus](https://github.com/fboundy/ha_solis_modbus), which was used to generate the above network capture by using the example script to set the inverter's time. There is obviously a delay between any write/read and getting the response back however after running the script, 20-30s later, the expected results are reflected in the Solis Hour/Minute/Second RW registers. Here I've extended it to pull some usage metrics and stick them on a dashboard:
 
