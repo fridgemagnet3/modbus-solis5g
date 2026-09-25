@@ -1,0 +1,602 @@
+# This package holds all the configurations for
+# the Modbus Solis interface
+
+# Modbus configuration - used for periodic reading of registers
+modbus:
+  - name: "solis"
+    type: tcp
+    host: 192.168.0.201
+    port: 502   # for S2-WL-ST sticks
+    # port: 8899  # for DLS-L sticks
+
+    sensors:
+      - name: Solis Hour RW
+        slave: 1
+        address: 43003
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+      - name: Solis Minute RW
+        slave: 1
+        address: 43004
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+      - name: Solis Second RW
+        slave: 1
+        address: 43005
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+      # Temperature
+      - name: Solis Temperature
+        unique_id: solis_temperature
+        slave: 1
+        address: 33093
+        scale: 0.1
+        input_type: input
+        data_type: uint16
+        scan_interval: 900
+        device_class: temperature
+        state_class: measurement
+        unit_of_measurement: °C
+
+      - name: Solis Alarm Code
+        unique_id: solis_alarm_code
+        slave: 1
+        address: 33070
+        scale: 1
+        input_type: input
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+      - name: Solis Status
+        unique_id: solis_status
+        slave: 1
+        address: 33095
+        scale: 1
+        input_type: input
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+      # block of 5 registers
+      - name: Solis Fault Status
+        unique_id: solis_fault_status
+        slave: 1
+        address: 33116
+        scale: 1
+        input_type: input
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+        virtual_count: 4
+
+      - name: Solis Operating Status
+        unique_id: solis_operating_status
+        slave: 1
+        address: 33121
+        scale: 1
+        input_type: input
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+      # block of 2 registers
+      - name: Solis Battery Failure
+        unique_id: solis_battery_failure
+        slave: 1
+        address: 33145
+        scale: 1
+        input_type: input
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+        virtual_count: 1
+
+      - name: Solis Time Of Use Charge/Discharge
+        slave: 1
+        address: 43707
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+      - name: Solis Charge Current 1
+        slave: 1
+        address: 43709
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+      - name: Solis Slot 1 Charge Start Hour
+        slave: 1
+        address: 43143
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+      - name: Solis Slot 1 Charge Start Minute
+        slave: 1
+        address: 43144
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+      - name: Solis Slot 1 Charge End Hour
+        slave: 1
+        address: 43145
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+      - name: Solis Slot 1 Charge End Minute
+        slave: 1
+        address: 43146
+        scale: 1
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+        state_class: measurement
+
+# inputs for primarily defining the overnight charge
+input_datetime:
+  charge_1_slot_start:
+    name: Charge 1 Slot Start Time
+    has_date: false
+    has_time: true
+    icon: mdi:clock-digital
+
+  charge_1_slot_end:
+    name: Charge 1 Slot End Time
+    has_date: false
+    has_time: true
+    icon: mdi:clock-digital
+
+input_number:
+  charge_1_slot_current:
+    name: Charge 1 Slot Current
+    initial: 100
+    mode: box
+    unit_of_measurement: "AMPERE"
+    min: 1
+    max: 100
+    step: 1
+    icon: mdi:battery
+
+input_boolean:
+  charge_1_slot_enable:
+    name: Charge 1 Slot Enable
+
+# templates for decoding status/alert registers
+# ref RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf
+template:
+  - sensor:
+    - unique_id: solis_status_string
+      default_entity_id: sensor.solis_status_string
+      name: "Solis Status"
+      state: >
+        {% set modbus_value = states('sensor.solis_status') | int(default=0) %}
+        {% if modbus_value == 0 %}
+          Waiting
+        {% elif modbus_value == 1 %}
+          OpenRun
+        {% elif modbus_value == 2 %}
+          SoftRun
+        {% elif modbus_value == 3 %}
+          Generating
+        {% elif modbus_value == 0x1010 %}
+          Grid overvoltage
+        {% elif modbus_value == 0x1011 %}
+          Grid undervoltage
+        {% elif modbus_value == 0x1012 %}
+          Grid overfrequency
+        {% elif modbus_value == 0x1013 %}
+          Grid underfrequency
+        {% elif modbus_value == 0x1014 %}
+          Grid impedence too large
+        {% elif modbus_value == 0x1015 %}
+          No grid
+        {% elif modbus_value == 0x1016 %}
+          Grid imbalance
+        {% elif modbus_value == 0x1017 %}
+          Grid frequency jitter
+        {% elif modbus_value == 0x1018 %}
+          Grid overcurrent
+        {% elif modbus_value == 0x1019 %}
+          Grid current tracking fault
+        {% elif modbus_value == 0x1020 %}
+          DC overvoltage
+        {% else %}
+          unknown
+        {% endif %}
+
+  - sensor:
+    - unique_id: solis_fault_status_string
+      default_entity_id: sensor.solis_fault_status_string
+      name: "Solis Fault Status"
+      state: |
+        {% set modbus_value = states('sensor.solis_fault_status') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["No grid "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["Grid overvoltage "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4) %}
+            {% set fault_status = fault_status + ["Grid undervoltage "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8) %}
+            {% set fault_status = fault_status + ["Grid overfrequency "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16) %}
+            {% set fault_status = fault_status + ["Grid underfrequency "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,32) %}
+            {% set fault_status = fault_status + ["Grid imbalance "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,64) %}
+            {% set fault_status = fault_status + ["Grid frequency jitter "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,128) %}
+            {% set fault_status = fault_status + ["Grid impedance is too large "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,256) %}
+            {% set fault_status = fault_status + ["Grid current tracking fault "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,512)  %}
+            {% set fault_status = fault_status + ["METER communication failed "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,1024) %}
+            {% set fault_status = fault_status + ["FailSafe"] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_fault_status_1_string
+      default_entity_id: sensor.solis_fault_status_1_string
+      name: "Solis Fault Status 1"
+      state: |
+        {% set modbus_value = states('sensor.solis_fault_status_1') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["Bypass overvoltage fault "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["Bypass overload fault"] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_fault_status_2_string
+      default_entity_id: sensor.solis_fault_status_2_string
+      name: "Solis Fault Status 2"
+      state: |
+        {% set modbus_value = states('sensor.solis_fault_status_2') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["Battery not connected  "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["Battery overvoltage detected "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4) %}
+            {% set fault_status = fault_status + ["Battery undervoltage detected"] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_fault_status_3_string
+      default_entity_id: sensor.solis_fault_status_3_string
+      name: "Solis Fault Status 3"
+      state: |
+        {% set modbus_value = states('sensor.solis_fault_status_3') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["DC overvoltage "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["DC bus overvoltage "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4) %}
+            {% set fault_status = fault_status + ["DC busbar uneven voltage "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8) %}
+            {% set fault_status = fault_status + ["DC bus undervoltage "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16) %}
+            {% set fault_status = fault_status + ["DC busbar uneven voltage 2 "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,32) %}
+            {% set fault_status = fault_status + ["DC A path overcurrent "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,64) %}
+            {% set fault_status = fault_status + ["DC B path overcurrent "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,128) %}
+            {% set fault_status = fault_status + ["DC input disturbance "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,256) %}
+            {% set fault_status = fault_status + ["Grid overcurrent "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,512) %}
+            {% set fault_status = fault_status + ["IGBT overcurrent "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,1024) %}
+            {% set fault_status = fault_status + ["Grid disturbance 02 "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2048) %}
+            {% set fault_status = fault_status + ["ARC self-test protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4096) %}
+            {% set fault_status = fault_status + ["ARC fault reservation "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8192) %}
+            {% set fault_status = fault_status + ["Grid current sampling abnormality"] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_fault_status_4_string
+      default_entity_id: sensor.solis_fault_status_4_string
+      name: "Solis Fault Status 4"
+      state: |
+        {% set modbus_value = states('sensor.solis_fault_status_4') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["Grid disturbance "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["DC component too large "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4) %}
+            {% set fault_status = fault_status + ["Over temperature protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8) %}
+            {% set fault_status = fault_status + ["Relay detection protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16) %}
+            {% set fault_status = fault_status + ["Under temperature protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,32) %}
+            {% set fault_status = fault_status + ["PV insulation fault "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,64) %}
+            {% set _ = fault_status + ["12V undervoltage protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,128) %}
+            {% set fault_status = fault_status + ["Leakage current protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,256) %}
+            {% set fault_status = fault_status + ["Leakage current self-test protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,512) %}
+            {% set fault_status = fault_status + ["DSP initialisation protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,1024) %}
+            {% set fault_status = fault_status + ["DSP_B protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2048) %}
+            {% set fault_status = fault_status + ["Battery overvoltage hardware failure "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4096)%}
+            {% set fault_status = fault_status + ["LLC hardware overccurent "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8192) %}
+            {% set fault_status = fault_status + ["Network side current transient overcurrent "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16384) %}
+            {% set fault_status = fault_status + ["CAN communication failed "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,32768) %}
+            {% set fault_status = fault_status + ["DSP communication failed"] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_operating_status_string
+      default_entity_id: sensor.solis_operating_status_string
+      name: "Solis Operating Status"
+      state: |
+        {% set modbus_value = states('sensor.solis_operating_status') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["Normal operation "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["Initial standby "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4) %}
+            {% set fault_status = fault_status + ["Control shutdown "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8) %}
+            {% set fault_status = fault_status + ["Downtime "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16) %}
+            {% set fault_status = fault_status + ["Standby "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,32) %}
+            {% set fault_status = fault_status + ["Derating operation "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,64) %}
+            {% set fault_status = fault_status + ["Limit operation "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,128) %}
+            {% set fault_status = fault_status + ["Bypass overload "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,256) %}
+            {% set fault_status = fault_status + ["Load failure "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,512) %}
+            {% set fault_status = fault_status + ["Grid failure "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,1024) %}
+            {% set fault_status = fault_status + ["Battery failure "] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_battery_failure
+      default_entity_id: sensor.battery_failure_string
+      name: "Solis Battery Failure 1"
+      state: |
+        {% set modbus_value = states('sensor.solis_battery_failure') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["Reserved  "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,2) %}
+            {% set fault_status = fault_status + ["Overvoltage protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,4) %}
+            {% set fault_status = fault_status + ["Undervoltage protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8) %}
+            {% set fault_status = fault_status + ["Over temperature protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16) %}
+            {% set fault_status = fault_status + ["Under temperature protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,32) %}
+            {% set fault_status = fault_status + ["Over temperature charging protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,64) %}
+            {% set fault_status = fault_status + ["Under temperature charging protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,128) %}
+            {% set fault_status = fault_status + ["Discharging overcurrent protection "] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+  - sensor:
+    - unique_id: solis_battery_failure_1
+      default_entity_id: sensor.battery_failure_string_1
+      name: "Solis Battery Failure 2"
+      state: |
+        {% set modbus_value = states('sensor.solis_battery_failure_1') | int(default=0) %}
+        {% set fault_status = [] %}
+        {% if modbus_value is not none %}
+          {% if bitwise_and(modbus_value,1) %}
+            {% set fault_status = fault_status + ["Charging overcurrent protection  "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,8) %}
+            {% set fault_status = fault_status + ["BMS internal protection "] %}
+          {% endif %}
+          {% if bitwise_and(modbus_value,16) %}
+            {% set fault_status = fault_status + ["Battery module unbalanced "] %}
+          {% endif %}
+        {% endif %}
+        {{ fault_status | join("") }}
+
+# helper scripts derived from fboundy's ha_solis_modbus integration
+script:
+  solis_set_time:
+    alias: Solis Set Time
+    sequence:
+    - service: script.solis_write_holding_register
+      data:
+        register_addr: 43003
+        register_value: '{{now().hour}}'
+    - service: script.solis_write_holding_register
+      data:
+        register_addr: 43004
+        register_value: '{{now().minute}}'
+    - service: script.solis_write_holding_register
+      data:
+        register_addr: 43005
+        register_value: '{{now().second}}'
+    mode: single
+
+  solis_charge_slot_1_current:
+    alias: Solis Set Charge 1 Slot Current
+    fields:
+      solis_set_charge_current:
+        description: Charge 1 Slot Current (A)
+        example: 50
+    sequence:
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 43709
+          register_value:
+            "{{(states('input_number.charge_1_slot_current')) | int}}"
+    mode: single
+
+  solis_write_holding_register:
+    alias: Solis Write Holding Register
+    fields:
+      register_addr:
+        description: Holding address to write to
+        example: 43141
+      register_value:
+        description: Value to write to holding address
+        example: 500
+    sequence:
+      - service: modbus.write_register
+        data:
+          address: "{{ register_addr }}"
+          slave: 1
+          value: "{{ register_value }}"
+          hub: solis
+      - service: logbook.log
+        data:
+          message: Send {{register_value}} to {{register_addr}}
+          name: Solis Write
+
+  solis_charge_1_slot_times:
+    alias: Solis Set Charge Slot 1 Times
+    sequence:
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 43143
+          register_value:
+            "{{(states('input_datetime.charge_1_slot_start')).split(':')[0]
+            | int}}"
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 43144
+          register_value:
+            "{{(states('input_datetime.charge_1_slot_start')).split(':')[1]
+            | int}}"
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 43145
+          register_value:
+            "{{(states('input_datetime.charge_1_slot_end')).split(':')[0]
+            | int}}"
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 43146
+          register_value:
+            "{{(states('input_datetime.charge_1_slot_end')).split(':')[1]
+            | int}}"
+    mode: single
+    icon: mdi:battery-clock-outline

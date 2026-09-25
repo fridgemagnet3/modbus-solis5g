@@ -22,6 +22,7 @@
 
 // modebus-slave. This is designed to loosely emulate the behaviour of the Solis inverter
 // when connected to the wifi logger
+// - virtual serial wrap: socat -d -d pty,raw,echo=0 pty,raw,echo=0
 //
 
 static int32_t ModBusHandleResponse(const char *Device, uint8_t Slave, modbus_mapping_t *ModBusMapping, uint32_t LoggerInterval = 60u)
@@ -398,7 +399,32 @@ int main(int argc, char *argv[])
 
   // set a dummy, non-zero bit count for testing
   ModBusMapping->tab_input_bits[0] = 0x55 ;
+
+#ifdef STATUS_ERROR_BITS  
+  // solis status = grid overvoltage
+  ModBusMapping->tab_input_registers[95] = 0x1010 ;
+  // fault codes 1-5
+  // grid frequency jitter
+  ModBusMapping->tab_input_registers[116] = 0x40 ;
+  // bypass overload fault
+  ModBusMapping->tab_input_registers[117] = 0x2 ;
+  // no battery
+  ModBusMapping->tab_input_registers[118] = 0x1;
+  // DC busbar uneven 2
+  ModBusMapping->tab_input_registers[119] = 0x10 ;
+  // leakage current protection
+  ModBusMapping->tab_input_registers[120] = 0x80;
   
+  // operating status = load failure
+  ModBusMapping->tab_input_registers[121] = 0x100;
+  
+  // battery failures
+  // battery failure = overtemp
+  ModBusMapping->tab_input_registers[145] = 0x8;
+  // charging overcurrent protection
+  ModBusMapping->tab_input_registers[146] = 0x1;
+#endif
+
   // start the run
   while (Rc>=0)
   {

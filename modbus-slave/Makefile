@@ -1,6 +1,10 @@
 CXX?=g++
 CXXFLAGS=-g -O2 -D_FILE_OFFSET_BITS=64 -fmessage-length=0 -fPIC 
 
+ifdef STATUS_ERROR_BITS
+CXXFLAGS+=-DSTATUS_ERROR_BITS
+endif
+
 OBJS=modbus-slave.o
 LIBS=-lmodbus -lboost_date_time -lboost_chrono -lboost_system
 APP=modbus-slave
