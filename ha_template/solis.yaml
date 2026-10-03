@@ -102,9 +102,10 @@ modbus:
         state_class: measurement
         virtual_count: 1
 
-      - name: Solis Time Of Use Charge/Discharge
+      # temp for sense checking controls
+      - name: Solis Charge 1 Enable/Disable
         slave: 1
-        address: 43707
+        address: 43815
         scale: 1
         input_type: holding
         data_type: uint16
@@ -184,6 +185,8 @@ input_boolean:
 
 # templates for decoding status/alert registers
 # ref RS485_MODBUS-Hybrid-BACoghlan-201811228-1854.pdf
+# and:
+# https://github.com/Pho3niX90/solis_modbus/blob/master/custom_components/solis_modbus/data/status_mapping.py
 template:
   - sensor:
     - unique_id: solis_status_string
@@ -192,13 +195,41 @@ template:
       state: >
         {% set modbus_value = states('sensor.solis_status') | int(default=0) %}
         {% if modbus_value == 0 %}
-          Waiting
+          Normal
         {% elif modbus_value == 1 %}
-          OpenRun
+          Open loop operation
         {% elif modbus_value == 2 %}
-          SoftRun
+          Waiting
         {% elif modbus_value == 3 %}
           Generating
+        {% elif modbus_value == 4 %}
+          Bypass / Inverting / Running
+        {% elif modbus_value == 5 %}
+          Bypass / Inverting / Synchronize
+        {% elif modbus_value == 6 %}
+          Bypass / Grid / Running
+        {% elif modbus_value == 7 %}
+          Standby
+        {% elif modbus_value == 8 %}
+          Derating
+        {% elif modbus_value == 10 %}
+          Auto test
+        {% elif modbus_value == 12 %}
+          Parameter setting
+        {% elif modbus_value == 13 %}
+          Firmware updating
+        {% elif modbus_value == 14 %}
+          Timed charge
+        {% elif modbus_value == 15 %}
+          Generating
+        {% elif modbus_value == 16 %}
+          Timed discharge
+        {% elif modbus_value == 0x1000 %}
+          Stop
+        {% elif modbus_value == 0x1004 %}
+          Control off-Grid
+        {% elif modbus_value == 0x100F %}
+          Islanding fault
         {% elif modbus_value == 0x1010 %}
           Grid overvoltage
         {% elif modbus_value == 0x1011 %}
@@ -221,6 +252,138 @@ template:
           Grid current tracking fault
         {% elif modbus_value == 0x1020 %}
           DC overvoltage
+        {% elif modbus_value == 0x1021 %}
+          DC bus overvoltage
+        {% elif modbus_value == 0x1022 %}
+          DC busbar uneven voltage
+        {% elif modbus_value == 0x1023 %}
+          DC bus undervoltage
+        {% elif modbus_value == 0x1024 %}
+          DC busbar uneven voltage 2
+        {% elif modbus_value == 0x1025 %}
+          DC A way overcurrent
+        {% elif modbus_value == 0x1026 %}
+          DC B path overcurrent
+        {% elif modbus_value == 0x1027 %}
+          DC input disturbance
+        {% elif modbus_value == 0x1028 %}
+          DC reverse polarity
+        {% elif modbus_value == 0x1029 %}
+          PV midpoint grounding
+        {% elif modbus_value == 0x1030 %}
+          Grid disturbance
+        {% elif modbus_value == 0x1031 %}
+          DSP initialization malfunction protection
+        {% elif modbus_value == 0x1032 %}
+          Temperature protection
+        {% elif modbus_value == 0x1033 %}
+          Ground protection
+        {% elif modbus_value == 0x1034 %}
+          Leakage current fault
+        {% elif modbus_value == 0x1035 %}
+          Relay failure
+        {% elif modbus_value == 0x1036 %}
+          DSP_B failure protection
+        {% elif modbus_value == 0x1037 %}
+          DC component is too large
+        {% elif modbus_value == 0x1038 %}
+          12V undervoltage fault protection
+        {% elif modbus_value == 0x1039 %}
+          Leakage current self-test protection
+        {% elif modbus_value == 0x103A %}
+          Under temperature protection
+        {% elif modbus_value == 0x1040 %}
+          Arc self-test protection
+        {% elif modbus_value == 0x1041 %}
+          Arc malfunction protection
+        {% elif modbus_value == 0x1042 %}
+          DSP on-chip SRAM exception
+        {% elif modbus_value == 0x1043 %}
+          DSP on-chip FLASH exception
+        {% elif modbus_value == 0x1044 %}
+          DSP on-chip PC pointer is abnormal
+        {% elif modbus_value == 0x1045 %}
+          DSP key register exception
+        {% elif modbus_value == 0x1046 %}
+          Grid disturbance 02
+        {% elif modbus_value == 0x1047 %}
+          Grid current sampling abnormality
+        {% elif modbus_value == 0x1048 %}
+          IGBT overcurrent
+        {% elif modbus_value == 0x1050 %}
+          Network side current transient
+        {% elif modbus_value == 0x1051 %}
+          Battery overvoltage hardware failure
+        {% elif modbus_value == 0x1052 %}
+          LLC hardware overcurrent
+        {% elif modbus_value == 0x1053 %}
+          Battery overvoltage detection
+        {% elif modbus_value == 0x1054 %}
+          Battery undervoltage detection
+        {% elif modbus_value == 0x1055 %}
+          Battery not connected
+        {% elif modbus_value == 0x1056 %}
+          Bypass overvoltage fault
+        {% elif modbus_value == 0x1057 %}
+          Bypass overload fault
+        {% elif modbus_value == 0x1058 %}
+          DSP self-check error
+        {% elif modbus_value == 0x1060 %}
+          Battery force charging
+        {% elif modbus_value == 0x1061 %}
+          Battery force discharging
+        {% elif modbus_value == 0x2010 %}
+          Fail safe
+        {% elif modbus_value == 0x2011 %}
+          Meter communication failure
+        {% elif modbus_value == 0x2012 %}
+          Battery communication failure (BMS)
+        {% elif modbus_value == 0x2013 %}
+          BMS firmware updating
+        {% elif modbus_value == 0x2014 %}
+          DSP communication failure
+        {% elif modbus_value == 0x2015 %}
+          BMS alarm
+        {% elif modbus_value == 0x2016 %}
+          Battery name failure
+        {% elif modbus_value == 0x2017 %}
+          BMS alarm 2
+        {% elif modbus_value == 0x2018 %}
+          DRM connection failure
+        {% elif modbus_value == 0x2019 %}
+          Meter select failure
+        {% elif modbus_value == 0x2020 %}
+          Lead-acid battery high temperature
+        {% elif modbus_value == 0x2021 %}
+          Lead-acid battery low temperature
+        {% elif modbus_value == 0x2047 %}
+          Panel overcurrent
+        {% elif modbus_value == 0x2048 %}
+          Low battery
+        {% elif modbus_value == 0x204A %}
+          Inverter hard limit
+        {% elif modbus_value == 0x204B %}
+          G100 meter fault
+        {% elif modbus_value == 0x204C %}
+          G100 CT fault
+        {% elif modbus_value == 0x2804 %}
+          Battery wiring error 1
+        {% elif modbus_value == 0x2805 %}
+          Battery wiring error 2
+        {% elif modbus_value == 0xF010 %}
+          Grid surge
+        {% elif modbus_value == 0xF011 %}
+          Fan fault
+        {% elif modbus_value == 0xF080 %}
+          PV inverter communication failure
+        {% elif modbus_value == 0xF081 %}
+          Meter 2 failure
+        {% elif modbus_value == 0xF082 %}
+          Parallel version mismatch
+        {% elif modbus_value == 0xF083 %}
+          Load cut-off
+        {% elif modbus_value == 0xF084 %}
+          Load cut-off locked
         {% else %}
           unknown
         {% endif %}
@@ -536,12 +699,26 @@ script:
         register_value: '{{now().second}}'
     mode: single
 
+  # strictly speaking this should be a read-modify-write to preserve
+  # the other charging slot enables but that's going to be quite
+  # convoluted to accomplish with this setup and I'm only ever using
+  # one anyway. Just be aware this will disable the rest.
+  solis_charge_slot_1_enable:
+    alias: Solis Set Charge 1 Slot Enable/Disable
+    sequence:
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 43815
+          register_value: |
+            {% if is_state('input_boolean.charge_1_slot_enable', 'on') %}
+              {{ 1 }}
+            {% else %}
+              {{ 0 }}
+            {% endif %}
+    mode: single
+
   solis_charge_slot_1_current:
     alias: Solis Set Charge 1 Slot Current
-    fields:
-      solis_set_charge_current:
-        description: Charge 1 Slot Current (A)
-        example: 50
     sequence:
       - service: script.solis_write_holding_register
         data:
