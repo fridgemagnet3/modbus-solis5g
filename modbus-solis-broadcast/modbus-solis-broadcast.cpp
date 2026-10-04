@@ -76,6 +76,8 @@ static SOCKET ModbusTCPClients[MAX_MODBUS_TCP_CLIENTS];
 static std::vector<ModbusTcpAdu*> ModbusClientRequests;
 // mutex used to lock access to the ModbusClientRequests vector
 static boost::mutex ModbusClientMutex;
+// poll enable/disable flag
+static bool PollEnable = true;
 
 static bool ServiceModbusTcpClient(SOCKET Sfd);
 
@@ -1005,6 +1007,34 @@ static bool ServiceModbusTcpClient(SOCKET Sfd)
     bool AddNewRequest = true;
     bool Transacted = false;
 
+    // a single write to address zero is a special case that allows the client to enable or disable
+    // the modbus polling behaviour. If disabled, logger syncs will still occur however we will not
+    // perform any bus transactions 
+    //
+    // Ideally I'd like this to be a user defined Modbus command however aside from implementing the
+    // additional logic to handle this, the HA modbus integration doesn't provide a mechanism for
+    // generating one of these so it would then require further custom code to interface directly with
+    // pymodbus - all in all then not worth it. 
+    if (Adu->IsWriteTransaction() && (!Adu->GetRegisterAddress()) && (Adu->GetRegisterCount() == 1) )
+    {
+      if (Adu->GetRegisterData().front())
+      {
+        if (Verbose)
+          printf("Received request to enable polling\n");
+        PollEnable = true;
+      }
+      else
+      {
+        if (Verbose)
+          printf("Received request to disable polling\n");
+        PollEnable = false;
+      }
+      // respond immediately to this request, then quit
+      ValidClient = Adu->TcpSendResponse(Sfd, Adu->GetTransactionId());
+      delete Adu;
+      return ValidClient;
+    }
+
     // lockout updates to the request list for the duration
     boost::lock_guard<boost::mutex> ClientListLock(ModbusClientMutex);
 
@@ -1257,6 +1287,9 @@ int main(int argc, char *argv[])
   {
     uint32_t TimeToNextPoll;
 
+    if (!PollEnable)
+      continue;
+
     // work out how much time we have till the next logger poll is due
     if (Elapsed < LoggerCycleTimeMilliseconds)
     {
@@ -1330,6 +1363,9 @@ int main(int argc, char *argv[])
         printf("Failed to retrieve modbus data from inverter\n");
         Elapsed += PollDelay;
       }
+
+      if (!PollEnable)
+        TimeToNextPoll = 0u;
 
       // update how much time we have left till the next poll
       if (TimeToNextPoll > Elapsed)

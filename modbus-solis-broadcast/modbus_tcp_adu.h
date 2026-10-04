@@ -68,6 +68,12 @@ public :
   // send response frame back to TCP client
   bool TcpSendResponse( SOCKET Sfd, uint16_t TransactionId) ;
 
+  // get register address
+  uint16_t GetRegisterAddress(void) const
+  {
+    return RegisterAddress;
+  }
+
   // get register data
   const std::vector<uint16_t>& GetRegisterData(void) const
   {
