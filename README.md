@@ -65,3 +65,9 @@ Whilst not designed to work with something like [Pho3niX90's Modbus integration]
 The server should support multiple TCP clients although this is untested.
 
 Here's a [video](https://youtu.be/fnl59WGnfrM?si=Im2rtFCH23bFSHs1) of it in action, with me droning on in the background.
+
+## Disabling inverter transactions
+
+A write to holding register zero (which is not a valid inverter register) is treated as a special case to either disable or enable inverter transactions performed by the software. If disabled, the software will still continue to perform logger syncs but will not issue any transactions to the inverter. This may be useful in cases where you want to give the datalogger exclusive access to the bus eg. for using the Solis Control API.
+
+A write of zero disables transactions, any other value re-enables them. Write transactions should to this address should always succeed on the first attempt.
