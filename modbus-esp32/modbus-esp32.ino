@@ -52,6 +52,8 @@ static int ModbusTCPClients[MAX_MODBUS_TCP_CLIENTS];
 static std::vector<ModbusTcpAdu*> ModbusClientRequests;
 // mutex used to lock access to the ModbusClientRequests vector
 static SemaphoreHandle_t ModbusClientMutex;
+// poll enable/disable flag
+static bool PollEnable = true;
 
 // Perform a Modbus read input registers, then if successful update any ADU transactions
 // that include the register data in this request. This is purely an optimisation piece, since
@@ -381,6 +383,32 @@ static bool ServiceModbusTcpClient(int Sfd)
   {
     bool AddNewRequest = true;
     bool Transacted = false;
+
+    // a single write to address zero is a special case that allows the client to enable or disable
+    // the modbus polling behaviour. If disabled, logger syncs will still occur however we will not
+    // perform any bus transactions 
+    //
+    // Ideally I'd like this to be a user defined Modbus command however aside from implementing the
+    // additional logic to handle this, the HA modbus integration doesn't provide a mechanism for
+    // generating one of these so it would then require further custom code to interface directly with
+    // pymodbus - all in all then not worth it. 
+    if (Adu->IsWriteTransaction() && (!Adu->GetRegisterAddress()) && (Adu->GetRegisterCount() == 1) )
+    {
+      if (*Adu->GetRegisterData())
+      {
+        Serial.println("Received request to enable polling");
+        PollEnable = true;
+      }
+      else
+      {
+        Serial.println("Received request to disable polling");
+        PollEnable = false;
+      }
+      // respond immediately to this request, then quit
+      ValidClient = Adu->TcpSendResponse(Sfd, Adu->GetTransactionId());
+      delete Adu;
+      return ValidClient;
+    }
 
     // lockout updates to the request list for the duration
     xSemaphoreTake(ModbusClientMutex,portMAX_DELAY) ;
@@ -908,6 +936,10 @@ void loop()
   static unsigned long TimeToNextPoll ;
   bool ServiceModbusTcp ;
 
+  // if polling disabled, force state machine to just perform logger sync's
+  if (!PollEnable && (SolisState == MODBUS_REQUEST))
+    SolisState = SYNC_INIT ;
+
   switch (SolisState)
   {
     case SYNC_INIT :
@@ -1058,8 +1090,8 @@ void loop()
           {
             Serial.printf("JSON data: %s:\n", jSon);
 
-            //if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
-            //  Serial.println("Failed to send broadcast packet") ;
+            if ( sendto(sFd, jSon, strlen(jSon), 0, (struct sockaddr*) &BroadcastAddr, sizeof(struct sockaddr_in)) < 0 )
+              Serial.println("Failed to send broadcast packet") ;
           }
           else
             Serial.println("Failed to encode JSON data");

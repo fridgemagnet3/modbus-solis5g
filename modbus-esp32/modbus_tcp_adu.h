@@ -82,6 +82,12 @@ public :
   // send response frame back to TCP client
   bool TcpSendResponse( int Sfd, uint16_t TransactionId) ;
 
+  // get register address
+  uint16_t GetRegisterAddress(void) const
+  {
+    return RegisterAddress;
+  }
+
   // get register data
   const uint16_t *GetRegisterData(void) const
   {
