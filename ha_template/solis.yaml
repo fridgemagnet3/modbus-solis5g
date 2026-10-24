@@ -105,7 +105,7 @@ modbus:
       # temp for sense checking controls
       - name: Solis Charge 1 Enable/Disable
         slave: 1
-        address: 43815
+        address: 43707
         scale: 1
         input_type: holding
         data_type: uint16
@@ -708,7 +708,7 @@ script:
     sequence:
       - service: script.solis_write_holding_register
         data:
-          register_addr: 43815
+          register_addr: 43707
           register_value: |
             {% if is_state('input_boolean.charge_1_slot_enable', 'on') %}
               {{ 1 }}
@@ -724,7 +724,7 @@ script:
         data:
           register_addr: 43709
           register_value:
-            "{{(states('input_number.charge_1_slot_current')) | int}}"
+            "{{ (states('input_number.charge_1_slot_current') | int * 10) | int }}"
     mode: single
 
   solis_write_holding_register:
@@ -777,3 +777,35 @@ script:
             | int}}"
     mode: single
     icon: mdi:battery-clock-outline
+
+  solis_disable_modbus_poll:
+    alias: Solis Disable Modbus Poll
+    sequence:
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 0
+          register_value: 0
+    mode: single
+
+  solis_enable_modbus_poll:
+    alias: Solis Enable Modbus Poll
+    sequence:
+      - service: script.solis_write_holding_register
+        data:
+          register_addr: 0
+          register_value: 1
+    mode: single
+
+automation:
+  id: atm_solis_slot_1_enable_disable
+  alias: "Solis charge slot 1 enable/disable"
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id:
+      - input_boolean.charge_1_slot_enable
+  conditions: []
+  actions:
+    - action: script.solis_charge_slot_1_enable
+      metadata: {}
+      data: {}
